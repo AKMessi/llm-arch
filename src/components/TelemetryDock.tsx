@@ -26,6 +26,7 @@ import type {
   PhysicsReport,
   SimilarityMatch,
 } from '../types/architecture';
+import { CreatorBadge } from './CreatorBadge';
 
 interface TelemetryDockProps {
   config: ArchitectureConfig;
@@ -612,6 +613,9 @@ export const TelemetryDock: React.FC<TelemetryDockProps> = ({
             </div>
           ))}
         </div>
+
+        {/* Maker Attribution Card */}
+        <CreatorBadge variant="card" />
 
         {/* Attribution footer */}
         <div

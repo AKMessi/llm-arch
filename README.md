@@ -211,9 +211,19 @@ Ideas for great PRs:
 
 ---
 
+## 👤 Created By
+
+**Aaryan Kakad**
+- Personal Website: [aaryan-kakad.github.io](https://aaryan-kakad.github.io)
+- X: [@aaryan_kakad](https://x.com/aaryan_kakad)
+- LinkedIn: [linkedin.com/in/aaryankakad](https://linkedin.com/in/aaryankakad)
+- GitHub: [@AKMessi](https://github.com/AKMessi)
+
+---
+
 ## 📜 Attribution & License
 
-- **Codebase:** Licensed under the **[MIT License](./LICENSE)** (`Copyright (c) 2026 AKMessi`).
+- **Codebase:** Licensed under the **[MIT License](./LICENSE)** (`Copyright (c) 2026 Aaryan Kakad`).
 - **Model Catalog Dataset:** `src/data/galleryModels.json` is derived from [**Sebastian Raschka's LLM Architecture Gallery**](https://github.com/rasbt/llm-architecture-gallery) (`models.yml`) under the **Apache License 2.0**. Full attribution and modification notes are preserved in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
 <div align="center">
