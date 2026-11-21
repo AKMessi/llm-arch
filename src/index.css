@@ -1,0 +1,213 @@
+@import "tailwindcss";
+
+:root,
+[data-theme="paper"] {
+  --bg-app: #f4f1ea;
+  --bg-canvas: #f8f6f0;
+  --bg-panel: #ffffff;
+  --bg-panel-subtle: #f1ede4;
+  --bg-panel-elevated: #ffffff;
+  --bg-slot: #fcfbf8;
+  --bg-slot-hover: #f4f0e6;
+  --bg-code: #151820;
+
+  --border-hairline: #dfd9cc;
+  --border-strong: #c5bdb0;
+  --border-focus: #181a1f;
+
+  --ink-primary: #15171c;
+  --ink-secondary: #4a4f5c;
+  --ink-muted: #767c8a;
+  --ink-inverse: #faf8f4;
+
+  --grid-dot: rgba(21, 23, 28, 0.11);
+  --grid-major: rgba(21, 23, 28, 0.055);
+
+  --stage-tokenizer: #2563eb;
+  --stage-tokenizer-soft: rgba(37, 99, 235, 0.09);
+  --stage-position: #4f46e5;
+  --stage-position-soft: rgba(79, 70, 229, 0.09);
+  --stage-norm: #0d9488;
+  --stage-norm-soft: rgba(13, 148, 136, 0.09);
+  --stage-attention: #ea580c;
+  --stage-attention-soft: rgba(234, 88, 12, 0.1);
+  --stage-hybrid: #d97706;
+  --stage-hybrid-soft: rgba(217, 119, 6, 0.1);
+  --stage-ffn: #059669;
+  --stage-ffn-soft: rgba(5, 150, 105, 0.09);
+  --stage-output: #e11d48;
+  --stage-output-soft: rgba(225, 29, 72, 0.09);
+
+  --shadow-card: 0 1px 2px rgba(21, 23, 28, 0.05), 0 4px 12px rgba(21, 23, 28, 0.03);
+  --shadow-float: 0 14px 34px rgba(21, 23, 28, 0.16), 0 2px 8px rgba(21, 23, 28, 0.08);
+}
+
+[data-theme="obsidian"] {
+  --bg-app: #0b0d12;
+  --bg-canvas: #0e1118;
+  --bg-panel: #141821;
+  --bg-panel-subtle: #1a1f2b;
+  --bg-panel-elevated: #1c2230;
+  --bg-slot: #131720;
+  --bg-slot-hover: #1b2230;
+  --bg-code: #090b0f;
+
+  --border-hairline: #252c3b;
+  --border-strong: #3a4459;
+  --border-focus: #f4f6fa;
+
+  --ink-primary: #f1f4f9;
+  --ink-secondary: #a5b0c4;
+  --ink-muted: #6e7b93;
+  --ink-inverse: #0e1118;
+
+  --grid-dot: rgba(165, 176, 196, 0.14);
+  --grid-major: rgba(165, 176, 196, 0.055);
+
+  --stage-tokenizer: #60a5fa;
+  --stage-tokenizer-soft: rgba(96, 165, 250, 0.13);
+  --stage-position: #818cf8;
+  --stage-position-soft: rgba(129, 140, 248, 0.13);
+  --stage-norm: #2dd4bf;
+  --stage-norm-soft: rgba(45, 212, 191, 0.13);
+  --stage-attention: #fb923c;
+  --stage-attention-soft: rgba(251, 146, 60, 0.14);
+  --stage-hybrid: #fbbf24;
+  --stage-hybrid-soft: rgba(251, 191, 36, 0.13);
+  --stage-ffn: #34d399;
+  --stage-ffn-soft: rgba(52, 211, 153, 0.13);
+  --stage-output: #fb7185;
+  --stage-output-soft: rgba(251, 113, 133, 0.13);
+
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 18px rgba(0, 0, 0, 0.22);
+  --shadow-float: 0 18px 42px rgba(0, 0, 0, 0.55), 0 4px 12px rgba(0, 0, 0, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-app);
+  color: var(--ink-primary);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-display {
+  font-family: 'Instrument Sans', 'Inter', -apple-system, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+.font-mono-num {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Blueprint dot + major hairline architectural grid */
+.blueprint-grid {
+  background-color: var(--bg-canvas);
+  background-image:
+    radial-gradient(circle, var(--grid-dot) 1px, transparent 1px),
+    linear-gradient(to right, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px);
+  background-size: 20px 20px, 100px 100px, 100px 100px;
+  background-position: -1px -1px;
+}
+
+/* Precision hairline scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--ink-muted);
+}
+
+/* Forward-pass animated tensor flow line */
+@keyframes flowDash {
+  from {
+    stroke-dashoffset: 24;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-tensor-flow {
+  stroke-dasharray: 5 5;
+  animation: flowDash 1.15s linear infinite;
+}
+
+@keyframes slotFlash {
+  0% {
+    box-shadow: 0 0 0 0 var(--flash-color, rgba(234, 88, 12, 0.45));
+  }
+  65% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+
+.animate-slot-flash {
+  animation: slotFlash 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes subtlePulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.animate-drop-beacon {
+  animation: subtlePulse 1.3s ease-in-out infinite;
+}
+
+/* Range input styling for architectural parameter sliders */
+input[type="range"].blueprint-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--border-hairline);
+  outline: none;
+  cursor: pointer;
+}
+
+input[type="range"].blueprint-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: var(--ink-primary);
+  border: 2px solid var(--bg-panel);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+  transition: transform 0.12s ease;
+}
+
+input[type="range"].blueprint-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}

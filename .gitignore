@@ -1,0 +1,29 @@
+# Dependencies
+node_modules/
+
+# Production build
+dist/
+dist-ssr/
+
+# Local env & cache
+.vercel/
+.env
+.env.local
+.env.*.local
+*.local
+.vite/
+*.tsbuildinfo
+
+# Logs & OS
+logs/
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+
+# Local launch media & scratch drafts
+*.mp4
+*.mov
+LAUNCH_COPY.md
+
+.vercel
