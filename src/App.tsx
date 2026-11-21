@@ -4,6 +4,7 @@ import { BlueprintCanvas } from './components/BlueprintCanvas';
 import { ComponentPalette } from './components/ComponentPalette';
 import { DragOverlay } from './components/DragOverlay';
 import { HeaderBar } from './components/HeaderBar';
+import { StudioFooter } from './components/StudioFooter';
 import { TelemetryDock } from './components/TelemetryDock';
 import { evaluateAllChallenges, getChallengeStarterConfig } from './data/challenges';
 import { getComponentsByStage } from './data/components';
@@ -695,6 +696,9 @@ export default function App() {
         </div>
       </div>
 
+      {/* Permanent Swiss Drafting Footer (Always visible on every tab & screen size) */}
+      <StudioFooter />
+
       {/* Floating Custom Pointer Drag Ghost */}
       <DragOverlay
         comp={dragState?.isDragging ? dragState.comp : null}
@@ -753,7 +757,7 @@ export default function App() {
       {/* Crisp Floating Status Toast */}
       {toast && (
         <div
-          className="fixed bottom-4 left-1/2 -translate-x-1/2 z-[95] px-3.5 py-2 rounded-lg border text-[12px] font-medium font-mono-num flex items-center gap-2 pointer-events-none"
+          className="fixed bottom-11 left-1/2 -translate-x-1/2 z-[95] px-3.5 py-2 rounded-lg border text-[12px] font-medium font-mono-num flex items-center gap-2 pointer-events-none"
           style={{
             backgroundColor: 'var(--ink-primary)',
             color: 'var(--ink-inverse)',

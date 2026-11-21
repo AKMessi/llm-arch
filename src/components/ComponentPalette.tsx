@@ -9,7 +9,6 @@ import {
 } from 'lucide-react';
 import { COMPONENTS, STAGE_MAP, STAGES } from '../data/components';
 import type { ArchitectureConfig, ComponentDef, StageId } from '../types/architecture';
-import { CreatorBadge } from './CreatorBadge';
 
 interface ComponentPaletteProps {
   config: ArchitectureConfig;
@@ -403,9 +402,6 @@ export const ComponentPalette: React.FC<ComponentPaletteProps> = ({
           ))
         )}
       </div>
-
-      {/* Sticky Maker Attribution Footer */}
-      <CreatorBadge variant="compact" />
     </aside>
   );
 };
