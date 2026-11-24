@@ -166,7 +166,7 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search DeepSeek, Qwen3.5, Gemma 4, Nemotron, MLA, Mamba-2, mHC…"
+                placeholder="Search GLM-5.4, DeepSeek, Qwen3.5, Gemma 4, Nemotron, MLA, Mamba-2, mHC…"
                 className="w-full pl-8 pr-3 py-1.5 rounded-md border text-[12px] focus:outline-none"
                 style={{
                   backgroundColor: 'var(--bg-panel)',

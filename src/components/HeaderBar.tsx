@@ -239,7 +239,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
                 <div className="border-t pt-2" style={{ borderColor: 'var(--border-hairline)' }}>
                   <div className="px-1 pb-1.5 flex items-center justify-between">
                     <span className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: 'var(--ink-muted)' }}>
-                      12 Landmark Reference Blueprints
+                      {PRESET_BLUEPRINTS.length} Landmark Reference Blueprints
                     </span>
                     <button
                       type="button"
@@ -297,7 +297,7 @@ export const HeaderBar: React.FC<HeaderBarProps> = ({
             borderColor: 'var(--border-hairline)',
             color: 'var(--ink-primary)',
           }}
-          title="Explore all 120 models from Sebastian Raschka's Gallery"
+          title={`Explore all ${galleryCount} open-weight models in the Architecture Gallery`}
         >
           <Layers className="w-3.5 h-3.5" style={{ color: 'var(--stage-tokenizer)' }} />
           <span className="hidden xl:inline">Gallery</span>

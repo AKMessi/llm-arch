@@ -37,6 +37,7 @@ interface BlueprintCanvasProps {
   config: ArchitectureConfig;
   physics: PhysicsReport;
   theme: 'paper' | 'obsidian';
+  galleryCount: number;
   draggingComp: ComponentDef | null;
   hoveredDropStage: StageId | null;
   flashedStage: StageId | null;
@@ -65,6 +66,7 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({
   config,
   physics,
   theme,
+  galleryCount,
   draggingComp,
   hoveredDropStage,
   flashedStage,
@@ -89,18 +91,20 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({
   const isMoE =
     config.ffn === 'ffn_moe_sparse' ||
     config.ffn === 'ffn_moe_shared' ||
-    config.ffn === 'ffn_latent_moe';
+    config.ffn === 'ffn_latent_moe' ||
+    config.ffn === 'ffn_looped_moe';
   const isMla =
     config.attention === 'attn_mla' ||
     config.attention === 'attn_mla_dsa' ||
+    config.attention === 'attn_mla_dsa_loop' ||
     config.attention === 'attn_csa_hca';
   const isGqaLike =
     config.attention === 'attn_gqa' ||
     config.attention === 'attn_gated_gqa' ||
     config.attention === 'attn_kv_sharing';
   const isHybrid = config.hybrid !== 'hyb_none' && config.hybrid !== 'hyb_xlstm';
-  const isSwa = config.hybrid === 'hyb_swa';
-  const isLooped = config.ffn === 'ffn_looped_depth';
+  const isSwa = config.hybrid === 'hyb_swa' || config.attention === 'attn_mla_dsa_loop';
+  const isLooped = config.ffn === 'ffn_looped_depth' || config.ffn === 'ffn_looped_moe';
 
   // Live hover delta preview when dragging a component over its target stage!
   const dragPreviewDelta = useMemo(() => {
@@ -116,13 +120,22 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({
       draggingComp.stage === 'ffn' &&
       (draggingComp.id === 'ffn_moe_sparse' ||
         draggingComp.id === 'ffn_moe_shared' ||
-        draggingComp.id === 'ffn_latent_moe') &&
+        draggingComp.id === 'ffn_latent_moe' ||
+        draggingComp.id === 'ffn_looped_moe') &&
       hypothetical.dims.nExperts <= 1
     ) {
-      hypothetical.dims.nExperts = 64;
-      hypothetical.dims.activeExperts = 6;
-      hypothetical.dims.nSharedExperts = draggingComp.id === 'ffn_moe_shared' ? 1 : 0;
+      hypothetical.dims.nExperts = draggingComp.id === 'ffn_looped_moe' ? 256 : 64;
+      hypothetical.dims.activeExperts = draggingComp.id === 'ffn_looped_moe' ? 8 : 6;
+      hypothetical.dims.nSharedExperts =
+        draggingComp.id === 'ffn_moe_shared' || draggingComp.id === 'ffn_looped_moe' ? 1 : 0;
       hypothetical.dims.dFf = Math.min(hypothetical.dims.dFf, 2048);
+    }
+    if (
+      draggingComp.stage === 'ffn' &&
+      (draggingComp.id === 'ffn_looped_depth' || draggingComp.id === 'ffn_looped_moe') &&
+      hypothetical.dims.loopPasses < 2
+    ) {
+      hypothetical.dims.loopPasses = 2;
     }
     const nextPhysics = computePhysics(hypothetical);
     const kvDiff = nextPhysics.kvKiBPerTokenBf16 - physics.kvKiBPerTokenBf16;
@@ -207,7 +220,7 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({
               style={{ borderColor: 'var(--border-hairline)', color: 'var(--ink-primary)' }}
             >
               <Compass className="w-3 h-3" style={{ color: 'var(--stage-tokenizer)' }} />
-              120-Model Pareto Map
+              {galleryCount}-Model Pareto Map
             </button>
             <button
               type="button"
@@ -313,7 +326,8 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({
                 color: 'var(--ink-secondary)',
               }}
             >
-              d={dims.dModel} · L={dims.nLayers} · H={dims.nHeads} (d_h={physics.dHead}) · Ctx={formatContext(dims.contextLength)}
+              d={dims.dModel} · L={dims.nLayers}
+              {physics.loopBreakdown ? ` (${physics.effectiveDepth} eff)` : ''} · H={dims.nHeads} (d_h={physics.dHead}) · Ctx={formatContext(dims.contextLength)}
             </span>
           </div>
 

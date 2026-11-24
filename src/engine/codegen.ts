@@ -18,11 +18,21 @@ export function generateHuggingFaceConfig(
   const isMoE =
     config.ffn === 'ffn_moe_sparse' ||
     config.ffn === 'ffn_moe_shared' ||
-    config.ffn === 'ffn_latent_moe';
+    config.ffn === 'ffn_latent_moe' ||
+    config.ffn === 'ffn_looped_moe';
+  const isMla =
+    config.attention === 'attn_mla' ||
+    config.attention === 'attn_mla_dsa' ||
+    config.attention === 'attn_mla_dsa_loop' ||
+    config.attention === 'attn_csa_hca';
+  const isLoopHybridKv = config.attention === 'attn_mla_dsa_loop';
+  const isSandwichLoop = config.ffn === 'ffn_looped_moe';
+  const isFullLoop = config.ffn === 'ffn_looped_depth';
+  const isLooped = isSandwichLoop || isFullLoop;
 
   const hf: Record<string, unknown> = {
     architectures: ['ArchitectonForCausalLM'],
-    model_type: 'architecton_custom',
+    model_type: isSandwichLoop ? 'glm_loop_moe' : 'architecton_custom',
     _blueprint_name: config.name,
     _estimated_total_params: formatParams(physics.params.total),
     _estimated_active_params: formatParams(physics.params.active),
@@ -31,6 +41,7 @@ export function generateHuggingFaceConfig(
     tokenizer_family: tok?.name,
     hidden_size: dims.dModel,
     num_hidden_layers: dims.nLayers,
+    ...(isLooped ? { effective_num_hidden_layers: physics.effectiveDepth } : {}),
     num_attention_heads: dims.nHeads,
     num_key_value_heads:
       config.attention === 'attn_mha'
@@ -44,6 +55,7 @@ export function generateHuggingFaceConfig(
     position_encoding: pos?.id,
     rope_theta: dims.contextLength >= 262144 ? 10000000.0 : 500000.0,
     normalization_topology: norm?.id,
+    gated_progressive_loop: config.norm === 'norm_gated_loop',
     qk_norm:
       config.norm === 'norm_rms_qknorm' ||
       config.norm === 'norm_peri_gemma' ||
@@ -51,25 +63,30 @@ export function generateHuggingFaceConfig(
     attention_mechanism: attn?.id,
     hybrid_interleave: hyb?.id,
     hybrid_ratio: config.hybrid !== 'hyb_none' ? `${dims.hybridRatio}:1` : null,
-    sliding_window: config.hybrid === 'hyb_swa' ? dims.swaWindow : null,
-    kv_lora_rank:
-      config.attention === 'attn_mla' ||
-      config.attention === 'attn_mla_dsa' ||
-      config.attention === 'attn_csa_hca'
-        ? dims.mlaKvLoraRank
-        : null,
-    qk_rope_head_dim:
-      config.attention === 'attn_mla' ||
-      config.attention === 'attn_mla_dsa' ||
-      config.attention === 'attn_csa_hca'
-        ? dims.mlaQkRopeDim
-        : null,
+    sliding_window: config.hybrid === 'hyb_swa' || isLoopHybridKv ? dims.swaWindow : null,
+    cross_loop_hybrid_kv: isLoopHybridKv,
+    cross_loop_index_share: isLoopHybridKv,
+    kv_lora_rank: isMla ? dims.mlaKvLoraRank : null,
+    qk_rope_head_dim: isMla ? dims.mlaQkRopeDim : null,
     ffn_type: ffn?.id,
     num_routed_experts: isMoE ? dims.nExperts : null,
     num_experts_per_tok: isMoE ? dims.activeExperts : null,
-    num_shared_experts: config.ffn === 'ffn_moe_shared' ? dims.nSharedExperts : 0,
+    num_shared_experts:
+      config.ffn === 'ffn_moe_shared' || config.ffn === 'ffn_looped_moe'
+        ? dims.nSharedExperts
+        : 0,
     first_k_dense_replace: isMoE ? dims.densePrefixLayers : 0,
-    looped_depth_passes: config.ffn === 'ffn_looped_depth' ? dims.loopPasses : 1,
+    looped_depth_passes: isLooped ? dims.loopPasses : 1,
+    ...(physics.loopBreakdown
+      ? {
+          loop_layout: {
+            opening_layers: physics.loopBreakdown.opening,
+            looped_middle_layers: physics.loopBreakdown.looped,
+            loop_passes: physics.loopBreakdown.passes,
+            closing_layers: physics.loopBreakdown.closing,
+          },
+        }
+      : {}),
     tie_word_embeddings: config.output === 'out_tied' || config.output === 'out_softcap',
     num_nextn_predict_layers:
       config.output === 'out_mtp' || config.output === 'out_sinks_mtp' ? 1 : 0,
@@ -103,18 +120,28 @@ export function generatePyTorchCode(
   const isPeri = config.norm === 'norm_peri_gemma';
   const isPost = config.norm === 'norm_post_olmo';
   const isMhc = config.norm === 'norm_mhc';
+  const isGatedLoop = config.norm === 'norm_gated_loop';
   const isMla =
     config.attention === 'attn_mla' ||
     config.attention === 'attn_mla_dsa' ||
+    config.attention === 'attn_mla_dsa_loop' ||
     config.attention === 'attn_csa_hca';
+  const isLoopHybridKv = config.attention === 'attn_mla_dsa_loop';
   const isGatedAttn = config.attention === 'attn_gated_gqa';
   const isMoE =
     config.ffn === 'ffn_moe_sparse' ||
     config.ffn === 'ffn_moe_shared' ||
-    config.ffn === 'ffn_latent_moe';
+    config.ffn === 'ffn_latent_moe' ||
+    config.ffn === 'ffn_looped_moe';
+  const hasSharedExperts =
+    (config.ffn === 'ffn_moe_shared' || config.ffn === 'ffn_looped_moe') &&
+    dims.nSharedExperts > 0;
+  const isSandwichLoop = config.ffn === 'ffn_looped_moe';
+  const isFullLoop = config.ffn === 'ffn_looped_depth';
   const isTied = config.output === 'out_tied' || config.output === 'out_softcap';
   const hasMtp = config.output === 'out_mtp' || config.output === 'out_sinks_mtp';
   const hasSoftCap = config.output === 'out_softcap';
+  const lb = physics.loopBreakdown;
 
   const normClass = useRms ? 'RMSNorm' : 'nn.LayerNorm';
   const nKv =
@@ -155,14 +182,20 @@ class ModelConfig:
         : ''
     }${
       isMoE
-        ? `\n    n_experts: int = ${dims.nExperts}\n    top_k_experts: int = ${dims.activeExperts}\n    n_shared_experts: int = ${config.ffn === 'ffn_moe_shared' ? dims.nSharedExperts : 0}\n    dense_prefix_layers: int = ${dims.densePrefixLayers}`
+        ? `\n    n_experts: int = ${dims.nExperts}\n    top_k_experts: int = ${dims.activeExperts}\n    n_shared_experts: int = ${hasSharedExperts ? dims.nSharedExperts : 0}\n    dense_prefix_layers: int = ${dims.densePrefixLayers}`
         : ''
     }${
-      config.hybrid === 'hyb_swa' ? `\n    sliding_window: int = ${dims.swaWindow}` : ''
+      config.hybrid === 'hyb_swa' || isLoopHybridKv
+        ? `\n    sliding_window: int = ${dims.swaWindow}`
+        : ''
     }${
       config.hybrid !== 'hyb_none' ? `\n    hybrid_ratio: int = ${dims.hybridRatio}` : ''
     }${
-      config.ffn === 'ffn_looped_depth' ? `\n    loop_passes: int = ${dims.loopPasses}` : ''
+      isFullLoop
+        ? `\n    loop_passes: int = ${dims.loopPasses}`
+        : isSandwichLoop && lb
+          ? `\n    loop_opening_layers: int = ${lb.opening}\n    loop_middle_layers: int = ${lb.looped}\n    loop_closing_layers: int = ${lb.closing}\n    loop_passes: int = ${lb.passes}  # Effective depth = ${physics.effectiveDepth} layers`
+          : ''
     }
 
 
@@ -184,7 +217,11 @@ ${
 ${
   isMla
     ? `class MultiHeadLatentAttention(nn.Module):
-    """${attn?.name} — compresses K/V jointly into low-rank latent c_KV (${dims.mlaKvLoraRank}d)."""
+    """${attn?.name} — compresses K/V jointly into low-rank latent c_KV (${dims.mlaKvLoraRank}d).${
+      isLoopHybridKv
+        ? `\n    Cross-Loop Hybrid KV: Pass 1 caches global (c_KV, k_rope) + DSA indices; Pass 2 reuses both + local SWA(${dims.swaWindow}).`
+        : ''
+    }"""
     def __init__(self, cfg: ModelConfig):
         super().__init__()
         self.n_heads, self.d_head = cfg.n_heads, cfg.d_head
@@ -194,14 +231,18 @@ ${
         self.w_ukv = nn.Linear(cfg.kv_lora_rank, cfg.n_heads * 2 * cfg.d_head, bias=False)
         self.w_o = nn.Linear(cfg.n_heads * cfg.d_head, cfg.d_model, bias=False)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
+    def forward(self, x: torch.Tensor${isLoopHybridKv ? ', loop_pass: int = 0' : ''}) -> torch.Tensor:
         B, T, _ = x.shape
         q = self.w_q(x).view(B, T, self.n_heads, -1)
         compressed = self.w_dkv(x)
         c_kv, k_rope = compressed.split([compressed.size(-1) - ${dims.mlaQkRopeDim}, ${dims.mlaQkRopeDim}], dim=-1)
         kv = self.w_ukv(self.kv_norm(c_kv)).view(B, T, self.n_heads, 2 * self.d_head)
         k_nope, v = kv.chunk(2, dim=-1)
-        # Note: At inference, cache ONLY (c_kv, k_rope) → ${formatKiB(physics.kvKiBPerTokenBf16)}/tok!
+        # Note: At inference, cache ONLY (c_kv, k_rope) → ${formatKiB(physics.kvKiBPerTokenBf16)}/tok!${
+          isLoopHybridKv
+            ? `\n        # On loop_pass > 0, production GLM-5.4 reuses Pass-1 global c_kv + DSA sparse indices (IndexShare)\n        # and keeps only a local sliding-window KV ring (W=${dims.swaWindow}) for refreshed tokens!`
+            : ''
+        }
         k = torch.cat([k_nope, k_rope.unsqueeze(2).expand(-1, -1, self.n_heads, -1)], dim=-1)
         out = F.scaled_dot_product_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), is_causal=True)
         return self.w_o(out.transpose(1, 2).reshape(B, T, -1))`
@@ -256,7 +297,7 @@ ${
 
 
 class SparseMoEBlock(nn.Module):
-    """${ffn?.name}: ${dims.nExperts} routed experts (top-${dims.activeExperts} active${config.ffn === 'ffn_moe_shared' ? ` + ${dims.nSharedExperts} shared` : ''})."""
+    """${ffn?.name}: ${dims.nExperts} routed experts (top-${dims.activeExperts} active${hasSharedExperts ? ` + ${dims.nSharedExperts} shared` : ''})."""
     def __init__(self, cfg: ModelConfig):
         super().__init__()
         self.top_k = cfg.top_k_experts${
@@ -267,7 +308,7 @@ class SparseMoEBlock(nn.Module):
         d_exp = ${config.ffn === 'ffn_latent_moe' ? 'cfg.d_model // 2' : 'cfg.d_model'}
         self.router = nn.Linear(cfg.d_model, cfg.n_experts, bias=False)
         self.experts = nn.ModuleList([SwiGLUExpert(d_exp, cfg.d_ff) for _ in range(cfg.n_experts)])${
-          config.ffn === 'ffn_moe_shared' && dims.nSharedExperts > 0
+          hasSharedExperts
             ? `\n        self.shared = SwiGLUExpert(cfg.d_model, cfg.d_ff * cfg.n_shared_experts)`
             : ''
         }
@@ -286,7 +327,7 @@ class SparseMoEBlock(nn.Module):
                 out[mask] += w_k[mask] * self.experts[e](z[mask])${
                   config.ffn === 'ffn_latent_moe' ? `\n        out = self.lat_up(out)` : ''
                 }${
-                  config.ffn === 'ffn_moe_shared' && dims.nSharedExperts > 0
+                  hasSharedExperts
                     ? `\n        out = out + self.shared(x)`
                     : ''
                 }
@@ -323,17 +364,19 @@ class DecoderBlock(nn.Module):
         }
         self.mixer = ${isMla ? 'MultiHeadLatentAttention(cfg)' : 'SequenceAttention(cfg)'}
         self.ffn = ${
-          isMoE ? 'DenseFFN(cfg) if layer_idx < cfg.dense_prefix_layers else SparseMoEBlock(cfg)' : 'DenseFFN(cfg)'
+          isMoE
+            ? 'SwiGLUExpert(cfg.d_model, max(cfg.d_ff * 4, int(cfg.d_model * 2.7))) if layer_idx < cfg.dense_prefix_layers else SparseMoEBlock(cfg)'
+            : 'DenseFFN(cfg)'
         }
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:${
+    def forward(self, x: torch.Tensor${isLoopHybridKv ? ', loop_pass: int = 0' : ''}) -> torch.Tensor:${
       isPeri
-        ? `\n        x = x + self.post_attn_norm(self.mixer(self.norm1(x)))\n        x = x + self.post_ffn_norm(self.ffn(self.norm2(x)))\n        return x`
+        ? `\n        x = x + self.post_attn_norm(self.mixer(self.norm1(x)${isLoopHybridKv ? ', loop_pass=loop_pass' : ''}))\n        x = x + self.post_ffn_norm(self.ffn(self.norm2(x)))\n        return x`
         : isPost
-          ? `\n        x = x + self.norm1(self.mixer(x))\n        x = x + self.norm2(self.ffn(x))\n        return x`
+          ? `\n        x = x + self.norm1(self.mixer(x${isLoopHybridKv ? ', loop_pass=loop_pass' : ''}))\n        x = x + self.norm2(self.ffn(x))\n        return x`
           : isMhc
-            ? `\n        # mHC: Manifold-Constrained Hyper-Connection multi-stream residual update\n        x = x + self.mixer(self.norm1(x))\n        x = x + self.ffn(self.norm2(x))\n        return x`
-            : `\n        x = x + self.mixer(self.norm1(x))\n        x = x + self.ffn(self.norm2(x))\n        return x`
+            ? `\n        # mHC: Manifold-Constrained Hyper-Connection multi-stream residual update\n        x = x + self.mixer(self.norm1(x)${isLoopHybridKv ? ', loop_pass=loop_pass' : ''})\n        x = x + self.ffn(self.norm2(x))\n        return x`
+            : `\n        x = x + self.mixer(self.norm1(x)${isLoopHybridKv ? ', loop_pass=loop_pass' : ''})\n        x = x + self.ffn(self.norm2(x))\n        return x`
     }
 
 
@@ -345,8 +388,15 @@ class ArchitectonLLM(nn.Module):
           config.position === 'pos_abs_learned'
             ? `\n        self.pos_emb = nn.Embedding(cfg.max_seq_len, cfg.d_model)`
             : ''
+        }${
+          isSandwichLoop && lb
+            ? `\n        # GLM-5.4 Sandwich Loop Layout: ${lb.opening} opening + ${lb.looped} shared looped (×${lb.passes}) + ${lb.closing} closing = ${physics.effectiveDepth} eff. layers\n        self.opening_layers = nn.ModuleList([DecoderBlock(cfg, i) for i in range(cfg.loop_opening_layers)])\n        self.loop_layers = nn.ModuleList([DecoderBlock(cfg, cfg.loop_opening_layers + i) for i in range(cfg.loop_middle_layers)])\n        self.closing_layers = nn.ModuleList([DecoderBlock(cfg, cfg.loop_opening_layers + cfg.loop_middle_layers + i) for i in range(cfg.loop_closing_layers)])`
+            : `\n        self.layers = nn.ModuleList([DecoderBlock(cfg, i) for i in range(cfg.n_layers)])`
+        }${
+          isGatedLoop
+            ? `\n        # Independent per-token progressive iteration gates β_k (prevents loop norm blowup)\n        self.loop_gates = nn.ModuleList([nn.Linear(cfg.d_model, cfg.d_model, bias=True) for _ in range(${Math.max(2, dims.loopPasses)})])`
+            : ''
         }
-        self.layers = nn.ModuleList([DecoderBlock(cfg, i) for i in range(cfg.n_layers)])
         self.final_norm = ${normClass}(cfg.d_model)
         self.lm_head = nn.Linear(cfg.d_model, cfg.vocab_size, bias=False)${
           isTied ? `\n        self.lm_head.weight = self.tok_emb.weight  # Weight-tied embeddings` : ''
@@ -362,9 +412,19 @@ class ArchitectonLLM(nn.Module):
             ? `\n        x = x + self.pos_emb(torch.arange(input_ids.size(1), device=input_ids.device))`
             : ''
         }${
-          config.ffn === 'ffn_looped_depth'
-            ? `\n        for _pass in range(self.cfg.loop_passes):\n            for layer in self.layers:\n                x = layer(x)`
-            : `\n        for layer in self.layers:\n            x = layer(x)`
+          isSandwichLoop && lb
+            ? `\n        for layer in self.opening_layers:\n            x = layer(x${isLoopHybridKv ? ', loop_pass=0' : ''})\n        for k in range(self.cfg.loop_passes):\n            h_in = x\n            for layer in self.loop_layers:\n                x = layer(x${isLoopHybridKv ? ', loop_pass=k' : ''})${
+                isGatedLoop
+                  ? `\n            beta_k = torch.sigmoid(self.loop_gates[k](h_in))\n            x = h_in + beta_k * (x - h_in)  # Gated progressive update β_k`
+                  : ''
+              }\n        for layer in self.closing_layers:\n            x = layer(x${isLoopHybridKv ? ', loop_pass=0' : ''})`
+            : isFullLoop
+              ? `\n        for k in range(self.cfg.loop_passes):\n            h_in = x\n            for layer in self.layers:\n                x = layer(x${isLoopHybridKv ? ', loop_pass=k' : ''})${
+                  isGatedLoop
+                    ? `\n            beta_k = torch.sigmoid(self.loop_gates[k](h_in))\n            x = h_in + beta_k * (x - h_in)`
+                    : ''
+                }`
+              : `\n        for layer in self.layers:\n            x = layer(x)`
         }
         logits = self.lm_head(self.final_norm(x))${
           hasSoftCap ? `\n        logits = 30.0 * torch.tanh(logits / 30.0)  # Gemma logit soft-capping` : ''

@@ -516,7 +516,7 @@ export const TelemetryDock: React.FC<TelemetryDockProps> = ({
             className="text-[10.5px] font-medium underline cursor-pointer"
             style={{ color: 'var(--stage-tokenizer)' }}
           >
-            All 120 →
+            All {matches.length} →
           </button>
         </div>
 
@@ -632,7 +632,7 @@ export const TelemetryDock: React.FC<TelemetryDockProps> = ({
           >
             Sebastian Raschka&apos;s LLM Architecture Gallery
           </a>{' '}
-          (Apache 2.0 · 120 open-weight models).
+          (Apache 2.0 · {matches.length} open-weight models).
         </div>
       </section>
     </aside>

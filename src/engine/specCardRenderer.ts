@@ -255,7 +255,11 @@ export function renderSpecCardCanvas(
   // ==================== MINI LAYER STACK RIBBON ====================
   ctx.fillStyle = inkMuted;
   ctx.font = '700 10px "JetBrains Mono", monospace';
-  ctx.fillText(`LAYER-BY-LAYER TOPOLOGY (L1–L${physics.layers.length})`, 60, 566);
+  ctx.fillText(
+    `LAYER-BY-LAYER TOPOLOGY (L1–L${physics.layers.length}${physics.effectiveDepth > physics.layers.length ? ` · ${physics.effectiveDepth} EFF. LAYERS` : ''})`,
+    60,
+    564
+  );
 
   const ribbonX = 60;
   const ribbonW = W - 120;
@@ -263,6 +267,10 @@ export function renderSpecCardCanvas(
   const cellW = Math.max(3, (ribbonW - gap * (physics.layers.length - 1)) / physics.layers.length);
   physics.layers.forEach((layer, i) => {
     const cx = ribbonX + i * (cellW + gap);
+    if (layer.loopRole === 'looped') {
+      ctx.fillStyle = stageColors.position;
+      ctx.fillRect(cx, 571, cellW, 4);
+    }
     const mColor =
       layer.mixerKind === 'primary'
         ? stageColors.attention
@@ -272,7 +280,7 @@ export function renderSpecCardCanvas(
             ? stageColors.position
             : stageColors.norm;
     ctx.fillStyle = mColor;
-    ctx.fillRect(cx, 576, cellW, 18);
+    ctx.fillRect(cx, 577, cellW, 17);
     ctx.fillStyle = layer.ffnKind !== 'dense' ? stageColors.ffn : border;
     ctx.fillRect(cx, 596, cellW, 6);
   });
@@ -281,7 +289,7 @@ export function renderSpecCardCanvas(
   ctx.fillStyle = inkMuted;
   ctx.font = '500 11px "JetBrains Mono", monospace';
   ctx.fillText(
-    'Grounded in Sebastian Raschka’s LLM Architecture Gallery (120 Open-Weight Models · Apache 2.0)',
+    'Grounded in Sebastian Raschka’s LLM Architecture Gallery + Frontier Releases (121 Open-Weight Models)',
     60,
     632
   );

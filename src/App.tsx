@@ -7,7 +7,7 @@ import { HeaderBar } from './components/HeaderBar';
 import { StudioFooter } from './components/StudioFooter';
 import { TelemetryDock } from './components/TelemetryDock';
 import { evaluateAllChallenges, getChallengeStarterConfig } from './data/challenges';
-import { getComponentsByStage } from './data/components';
+import { COMPONENTS, getComponentsByStage } from './data/components';
 import rawGalleryModels from './data/galleryModels.json';
 import { galleryModelToConfig, PRESET_BLUEPRINTS } from './data/presets';
 import { decodeConfigFromHash, encodeConfigToHash } from './engine/codegen';
@@ -191,14 +191,19 @@ export default function App() {
         comp.stage === 'ffn' &&
         (comp.id === 'ffn_moe_sparse' ||
           comp.id === 'ffn_moe_shared' ||
-          comp.id === 'ffn_latent_moe');
+          comp.id === 'ffn_latent_moe' ||
+          comp.id === 'ffn_looped_moe');
       const leavingMoE = comp.stage === 'ffn' && !enteringMoE && prev.dims.nExperts > 1;
 
       if (enteringMoE && prev.dims.nExperts <= 1) {
-        nextDims.nExperts = comp.id === 'ffn_moe_shared' ? 128 : 64;
-        nextDims.activeExperts = comp.id === 'ffn_moe_shared' ? 8 : 6;
-        nextDims.nSharedExperts = comp.id === 'ffn_moe_shared' ? 1 : 0;
-        nextDims.densePrefixLayers = comp.id === 'ffn_moe_shared' ? 2 : 0;
+        nextDims.nExperts =
+          comp.id === 'ffn_looped_moe' ? 256 : comp.id === 'ffn_moe_shared' ? 128 : 64;
+        nextDims.activeExperts =
+          comp.id === 'ffn_moe_shared' || comp.id === 'ffn_looped_moe' ? 8 : 6;
+        nextDims.nSharedExperts =
+          comp.id === 'ffn_moe_shared' || comp.id === 'ffn_looped_moe' ? 1 : 0;
+        nextDims.densePrefixLayers =
+          comp.id === 'ffn_looped_moe' ? 3 : comp.id === 'ffn_moe_shared' ? 2 : 0;
         nextDims.dFf = Math.min(2048, Math.max(1024, Math.round(prev.dims.dModel / 2)));
       } else if (leavingMoE) {
         nextDims.nExperts = 1;
@@ -208,9 +213,16 @@ export default function App() {
         nextDims.dFf = Math.round((prev.dims.dModel * 3.5) / 256) * 256;
       }
 
-      if (comp.id === 'ffn_looped_depth' && nextDims.loopPasses < 2) {
+      if (
+        (comp.id === 'ffn_looped_depth' || comp.id === 'ffn_looped_moe') &&
+        nextDims.loopPasses < 2
+      ) {
         nextDims.loopPasses = 2;
-      } else if (comp.stage === 'ffn' && comp.id !== 'ffn_looped_depth') {
+      } else if (
+        comp.stage === 'ffn' &&
+        comp.id !== 'ffn_looped_depth' &&
+        comp.id !== 'ffn_looped_moe'
+      ) {
         nextDims.loopPasses = 1;
       }
 
@@ -409,9 +421,12 @@ export default function App() {
     const ffn = pick(getComponentsByStage('ffn'));
     const out = pick(getComponentsByStage('output'));
     const isMoE =
-      ffn.id === 'ffn_moe_sparse' || ffn.id === 'ffn_moe_shared' || ffn.id === 'ffn_latent_moe';
+      ffn.id === 'ffn_moe_sparse' ||
+      ffn.id === 'ffn_moe_shared' ||
+      ffn.id === 'ffn_latent_moe' ||
+      ffn.id === 'ffn_looped_moe';
     const dModel = pick([2048, 3072, 4096, 5120, 6144]);
-    const nLayers = pick([24, 32, 40, 48, 60]);
+    const nLayers = pick([24, 32, 40, 48, 60, 78]);
     const nHeads = Math.max(16, Math.round(dModel / 128));
 
     commitConfig({
@@ -432,10 +447,10 @@ export default function App() {
         dFf: isMoE ? 1536 : Math.round((dModel * 3.5) / 256) * 256,
         nExperts: isMoE ? pick([64, 128, 256]) : 1,
         activeExperts: isMoE ? pick([4, 6, 8]) : 1,
-        nSharedExperts: ffn.id === 'ffn_moe_shared' ? 1 : 0,
-        densePrefixLayers: ffn.id === 'ffn_moe_shared' ? 2 : 0,
+        nSharedExperts: ffn.id === 'ffn_moe_shared' || ffn.id === 'ffn_looped_moe' ? 1 : 0,
+        densePrefixLayers: ffn.id === 'ffn_looped_moe' ? 3 : ffn.id === 'ffn_moe_shared' ? 2 : 0,
         hybridRatio: hyb.id === 'hyb_mamba2' ? 5 : pick([3, 5]),
-        loopPasses: ffn.id === 'ffn_looped_depth' ? 2 : 1,
+        loopPasses: ffn.id === 'ffn_looped_depth' || ffn.id === 'ffn_looped_moe' ? 2 : 1,
         contextLength: pick([65536, 131072, 262144, 1048576]),
       },
     });
@@ -540,7 +555,7 @@ export default function App() {
         style={{ backgroundColor: 'var(--bg-panel-subtle)', borderColor: 'var(--border-hairline)' }}
       >
         {[
-          { id: 'palette' as const, label: 'Blocks (49)', icon: <Layers className="w-3.5 h-3.5" /> },
+          { id: 'palette' as const, label: `Blocks (${COMPONENTS.length})`, icon: <Layers className="w-3.5 h-3.5" /> },
           { id: 'center' as const, label: 'Workspace', icon: <Blocks className="w-3.5 h-3.5" /> },
           { id: 'telemetry' as const, label: 'Telemetry', icon: <Activity className="w-3.5 h-3.5" /> },
         ].map((p) => (
@@ -595,6 +610,7 @@ export default function App() {
                 config={config}
                 physics={physics}
                 theme={theme}
+                galleryCount={GALLERY_MODELS.length}
                 draggingComp={dragState?.isDragging ? dragState.comp : null}
                 hoveredDropStage={hoveredDropStage}
                 flashedStage={flashedStage}
@@ -697,7 +713,7 @@ export default function App() {
       </div>
 
       {/* Permanent Swiss Drafting Footer (Always visible on every tab & screen size) */}
-      <StudioFooter />
+      <StudioFooter galleryCount={GALLERY_MODELS.length} />
 
       {/* Floating Custom Pointer Drag Ghost */}
       <DragOverlay

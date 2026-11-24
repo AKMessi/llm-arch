@@ -49,7 +49,11 @@ const SOCIALS = [
   },
 ];
 
-export const StudioFooter: React.FC = () => {
+interface StudioFooterProps {
+  galleryCount?: number;
+}
+
+export const StudioFooter: React.FC<StudioFooterProps> = ({ galleryCount = 121 }) => {
   return (
     <footer
       className="h-8 shrink-0 border-t px-3 flex items-center justify-between gap-3 select-none z-30"
@@ -133,7 +137,7 @@ export const StudioFooter: React.FC = () => {
             className="hover:underline"
             style={{ color: 'var(--ink-secondary)' }}
           >
-            Sebastian Raschka&apos;s Gallery (120 LLMs)
+            Sebastian Raschka&apos;s Gallery + Frontier ({galleryCount} LLMs)
           </a>
         </span>
       </div>

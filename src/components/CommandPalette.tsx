@@ -92,9 +92,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
       {
         id: 'act-gallery',
         group: 'Action',
-        title: 'Open 120-Model Sebastian Raschka Gallery',
-        subtitle: 'Browse & filter all 120 real open-weight models',
-        badge: '120',
+        title: `Open ${galleryModels.length}-Model Architecture Gallery`,
+        subtitle: `Browse & filter all ${galleryModels.length} real open-weight models`,
+        badge: String(galleryModels.length),
         onSelect: onOpenGallery,
       },
       {
@@ -221,7 +221,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Jump to any of 49 blocks, 120 models, 8 missions, or actions…"
+            placeholder={`Jump to any of ${COMPONENTS.length} blocks, ${galleryModels.length} models, ${ARCHITECTURE_CHALLENGES.length} missions, or actions…`}
             className="flex-1 bg-transparent text-[13.5px] focus:outline-none"
             style={{ color: 'var(--ink-primary)' }}
           />

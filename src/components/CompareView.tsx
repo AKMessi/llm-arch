@@ -161,14 +161,14 @@ export const CompareView: React.FC<CompareViewProps> = ({
               <option value="" disabled>
                 Load Reference into Slot B…
               </option>
-              <optgroup label="12 Iconic Blueprints">
+              <optgroup label={`${PRESET_BLUEPRINTS.length} Iconic Blueprints`}>
                 {PRESET_BLUEPRINTS.map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name} ({p.kvBadge})
                   </option>
                 ))}
               </optgroup>
-              <optgroup label="All 120 Gallery Models">
+              <optgroup label={`All ${galleryModels.length} Gallery Models`}>
                 {galleryModels.map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name} — {m.company}

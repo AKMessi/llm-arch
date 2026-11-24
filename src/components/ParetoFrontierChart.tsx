@@ -129,7 +129,7 @@ export const ParetoFrontierChart: React.FC<ParetoFrontierChartProps> = ({
           <div className="flex items-center gap-2">
             <Compass className="w-4 h-4" style={{ color: 'var(--stage-attention)' }} />
             <h2 className="font-display font-bold text-[14px]">
-              120-Model Pareto Frontier: Scale vs. KV-Cache Efficiency
+              {galleryModels.length}-Model Pareto Frontier: Scale vs. KV-Cache Efficiency
             </h2>
           </div>
           <p className="text-[11.5px] mt-0.5" style={{ color: 'var(--ink-secondary)' }}>
@@ -330,7 +330,7 @@ export const ParetoFrontierChart: React.FC<ParetoFrontierChartProps> = ({
             <div className="flex items-center gap-1.5">
               <TrendingUp className="w-3.5 h-3.5" style={{ color: 'var(--stage-tokenizer)' }} />
               <span className="font-display font-bold text-[11px] uppercase tracking-[0.06em]">
-                Gallery Adoption (120 Models)
+                Gallery Adoption ({galleryModels.length} Models)
               </span>
             </div>
             <span className="text-[9.5px] font-mono-num" style={{ color: 'var(--stage-attention)' }}>

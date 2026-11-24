@@ -94,6 +94,7 @@ export function runArchitectureDiagnostics(
     (config.norm === 'norm_pre_ln' || config.norm === 'norm_pre_rms') &&
     config.attention !== 'attn_mla' &&
     config.attention !== 'attn_mla_dsa' &&
+    config.attention !== 'attn_mla_dsa_loop' &&
     config.attention !== 'attn_csa_hca'
   ) {
     items.push({
@@ -109,7 +110,56 @@ export function runArchitectureDiagnostics(
     });
   }
 
+  // 7. Looped Depth without Gated Progressive Updates (β_k)
+  const isLooped = config.ffn === 'ffn_looped_depth' || config.ffn === 'ffn_looped_moe';
+  if (isLooped && dims.nLayers >= 32 && config.norm !== 'norm_gated_loop') {
+    items.push({
+      id: 'loop-norm-blowup',
+      severity: 'warning',
+      title: 'Recurrent Loop Norm-Blowup Risk (Missing β_k Gate)',
+      detail: `Re-executing shared layers across ${dims.loopPasses} passes (${physics.effectiveDepth} eff. depth) can cause hidden-state norm divergence. GLM-5.4 solves this with independent per-token progressive iteration gates (β_k).`,
+      suggestion: {
+        label: 'Equip Gated Loop (β_k)',
+        stage: 'norm',
+        componentId: 'norm_gated_loop',
+      },
+    });
+  }
+
+  // 8. Looped Depth at Long Context without Cross-Loop Hybrid KV Sharing
+  if (
+    isLooped &&
+    dims.contextLength >= 131072 &&
+    config.attention !== 'attn_mla_dsa_loop' &&
+    config.hybrid === 'hyb_none'
+  ) {
+    items.push({
+      id: 'loop-kv-bloat',
+      severity: 'warning',
+      title: 'Looped Passes Multiply Full-Context KV Cache',
+      detail: `At ${Math.round(dims.contextLength / 1024)}K context, naively caching every loop pass multiplies KV-cache VRAM. GLM-5.4 reuses Pass-1 compressed MLA KV & DSA indices while adding only a local SWA(1024) KV ring on Pass 2.`,
+      suggestion: {
+        label: 'Equip Cross-Loop Hybrid KV',
+        stage: 'attention',
+        componentId: 'attn_mla_dsa_loop',
+      },
+    });
+  }
+
   // ==================== SYNERGIES (POSITIVE ARCHITECTURAL INSIGHTS) ====================
+  if (
+    config.ffn === 'ffn_looped_moe' &&
+    (config.norm === 'norm_gated_loop' || config.attention === 'attn_mla_dsa_loop')
+  ) {
+    const lb = physics.loopBreakdown;
+    items.push({
+      id: 'syn-glm54-loop',
+      severity: 'synergy',
+      title: `GLM-5.4 Loop Transformer Synergy (${physics.effectiveDepth} Eff. Layers)`,
+      detail: `${lb ? `${lb.opening} opening + ${lb.looped} looped ×${lb.passes} + ${lb.closing} closing` : `${dims.nLayers}×${dims.loopPasses}`} delivers 2T–3T class reasoning depth inside a ${((physics.params.total / 1e9)).toFixed(0)}B weight footprint — stabilized by β_k progressive gates & Cross-Loop Hybrid KV + DSA IndexShare!`,
+    });
+  }
+
   if (config.attention === 'attn_gated_gqa' && (config.hybrid === 'hyb_deltanet' || config.hybrid === 'hyb_kda')) {
     items.push({
       id: 'syn-qwen-hybrid',

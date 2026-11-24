@@ -23,6 +23,7 @@ export const LayerStackStrip: React.FC<LayerStackStripProps> = ({ physics }) => 
   const hasMoE = physics.layers.some((l) => l.ffnKind !== 'dense');
   const hasDensePrefix =
     hasMoE && physics.layers.some((l) => l.ffnKind === 'dense');
+  const hasSandwichLoop = Boolean(physics.loopBreakdown);
 
   return (
     <div
@@ -72,6 +73,12 @@ export const LayerStackStrip: React.FC<LayerStackStripProps> = ({ physics }) => 
               Dense Prefix
             </span>
           )}
+          {hasSandwichLoop && physics.loopBreakdown && (
+            <span className="flex items-center gap-1 font-semibold" style={{ color: 'var(--stage-position)' }}>
+              <span className="w-2.5 h-1.5 rounded-[1px]" style={{ backgroundColor: 'var(--stage-position)' }} />
+              Looped ×{physics.loopBreakdown.passes} ({physics.loopBreakdown.looped}L)
+            </span>
+          )}
         </div>
       </div>
 
@@ -81,22 +88,32 @@ export const LayerStackStrip: React.FC<LayerStackStripProps> = ({ physics }) => 
           const isHovered = hovered?.index === layer.index;
           const mixerColor = MIXER_COLORS[layer.mixerKind].color;
           const isMoeLayer = layer.ffnKind !== 'dense';
+          const isLoopedMid = layer.loopRole === 'looped';
           return (
             <div
               key={layer.index}
               onMouseEnter={() => setHovered(layer)}
               onMouseLeave={() => setHovered(null)}
-              className="flex-1 min-w-[7px] max-w-[20px] flex flex-col gap-[2px] cursor-crosshair transition-transform"
+              className="flex-1 min-w-[6px] max-w-[20px] flex flex-col gap-[2px] cursor-crosshair transition-transform"
               style={{
                 transform: isHovered ? 'scaleY(1.18)' : undefined,
               }}
             >
+              {/* Optional GLM-5.4 Sandwich Loop Crown Indicator */}
+              {hasSandwichLoop && (
+                <div
+                  className="h-1.5 rounded-t-[2px]"
+                  style={{
+                    backgroundColor: isLoopedMid ? 'var(--stage-position)' : 'transparent',
+                  }}
+                />
+              )}
               {/* Top Bar: Sequence Mixer */}
               <div
                 className="h-5 rounded-t-[2px] relative"
                 style={{
                   backgroundColor: mixerColor,
-                  opacity: layer.kvSharedSource ? 0.52 : 0.92,
+                  opacity: layer.kvSharedSource ? 0.52 : isLoopedMid ? 1 : 0.86,
                 }}
               />
               {/* Bottom Bar: FFN / MoE */}
@@ -124,8 +141,15 @@ export const LayerStackStrip: React.FC<LayerStackStripProps> = ({ physics }) => 
         {hovered ? (
           <>
             <span>
-              <strong style={{ color: 'var(--ink-primary)' }}>Layer {hovered.index}</strong> ·{' '}
-              {hovered.mixerLabel} +{' '}
+              <strong style={{ color: 'var(--ink-primary)' }}>Layer {hovered.index}</strong>
+              {hovered.loopRole === 'opening'
+                ? ' [Opening]'
+                : hovered.loopRole === 'looped'
+                  ? ` [Looped ×${hovered.isLoopedPass ?? 2}]`
+                  : hovered.loopRole === 'closing'
+                    ? ' [Closing]'
+                    : ''}{' '}
+              · {hovered.mixerLabel} +{' '}
               {hovered.ffnKind === 'dense'
                 ? 'Dense FFN'
                 : hovered.ffnKind === 'latent_moe'

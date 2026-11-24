@@ -108,6 +108,7 @@ export interface LayerSpec {
   ffnKind: 'dense' | 'moe' | 'latent_moe';
   kvBytesPerTokenBf16: number;
   isLoopedPass?: number;
+  loopRole?: 'opening' | 'looped' | 'closing';
   kvSharedSource?: number;
 }
 
@@ -168,6 +169,12 @@ export interface PhysicsReport {
   decoderTypeLabel: string;
   layerMixSummary: string;
   kvCompressionVsMha: number;
+  loopBreakdown?: {
+    opening: number;
+    looped: number;
+    closing: number;
+    passes: number;
+  };
   economics: ServingEconomics;
   traceSteps: ForwardTraceStep[];
 }

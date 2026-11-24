@@ -86,7 +86,9 @@ export const SimulationLab: React.FC<SimulationLabProps> = ({
 
   const hasSinks = config.output === 'out_sinks_mtp';
   const isSparseDsa =
-    config.attention === 'attn_mla_dsa' || config.attention === 'attn_csa_hca';
+    config.attention === 'attn_mla_dsa' ||
+    config.attention === 'attn_mla_dsa_loop' ||
+    config.attention === 'attn_csa_hca';
   const isNoPe = config.position === 'pos_pure_nope';
   const isGatedAttn = config.attention === 'attn_gated_gqa';
 

@@ -295,8 +295,8 @@ export const ARCHITECTURE_CHALLENGES: ArchitectureChallenge[] = [
     category: '2026 Frontier',
     brief:
       'Achieve ≥96 effective reasoning layers of depth while storing ≤8B physical parameters in VRAM!',
-    hint: 'Drop Looped Depth Sharing (×K passes) into Stage 06 and tune physical layers + loop passes (×2 or ×4) inside Fine-Tune!',
-    realWorldRef: 'Inspired by ByteDance Ouro-Thinking 2.6B (48×4) & NVIDIA Dory 1.0 4B',
+    hint: 'Drop Looped Depth Sharing (×K passes) or Looped Sparse MoE into Stage 06 and tune physical layers + loop passes (×2 or ×4) inside Fine-Tune!',
+    realWorldRef: 'Inspired by ByteDance Ouro-Thinking 2.6B (48×4), NVIDIA Dory 1.0 & Z.ai GLM-5.4 (26+28×2+24)',
     starterPresetId: 'llama-3-8b',
     evaluate: (config, physics) => [
       {
@@ -314,8 +314,11 @@ export const ARCHITECTURE_CHALLENGES: ArchitectureChallenge[] = [
       {
         id: 'looped',
         label: 'Looped Depth Sharing Equipped',
-        currentText: config.ffn === 'ffn_looped_depth' ? `×${config.dims.loopPasses} passes` : 'Not Equipped',
-        passed: config.ffn === 'ffn_looped_depth',
+        currentText:
+          config.ffn === 'ffn_looped_depth' || config.ffn === 'ffn_looped_moe'
+            ? `×${config.dims.loopPasses} passes`
+            : 'Not Equipped',
+        passed: config.ffn === 'ffn_looped_depth' || config.ffn === 'ffn_looped_moe',
       },
     ],
   },
@@ -414,6 +417,15 @@ export function classifyArchetype(
     return {
       title: 'The Linear-Hybrid Assassin',
       subtitle: 'Gated delta-rule linear recurrence paired with periodic full attention.',
+    };
+  }
+  if (config.ffn === 'ffn_looped_moe') {
+    const lb = physics.loopBreakdown;
+    return {
+      title: 'The Sandwich Loop Titan',
+      subtitle: lb
+        ? `${lb.opening}+${lb.looped}×${lb.passes}+${lb.closing} → ${physics.effectiveDepth} effective layers with gated β_k progressive looping.`
+        : `${physics.effectiveDepth} effective reasoning layers via looped sparse MoE depth sharing.`,
     };
   }
   if (config.ffn === 'ffn_looped_depth') {

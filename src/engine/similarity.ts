@@ -7,8 +7,8 @@ import type {
 
 /**
  * Computes structural similarity (0..100%) between the user's live drag-and-drop
- * architecture and ALL 120 real open-weight models in Sebastian Raschka's
- * LLM Architecture Gallery!
+ * architecture and all open-weight models in the catalog (Sebastian Raschka's
+ * LLM Architecture Gallery + frontier additions such as Z.ai GLM-5.4).
  */
 export function matchGalleryModels(
   config: ArchitectureConfig,
@@ -20,7 +20,10 @@ export function matchGalleryModels(
   const isUserMoE =
     config.ffn === 'ffn_moe_sparse' ||
     config.ffn === 'ffn_moe_shared' ||
-    config.ffn === 'ffn_latent_moe';
+    config.ffn === 'ffn_latent_moe' ||
+    config.ffn === 'ffn_looped_moe';
+  const isUserLoop =
+    config.ffn === 'ffn_looped_depth' || config.ffn === 'ffn_looped_moe';
   const isUserRecurrent = config.hybrid === 'hyb_xlstm';
   const isUserMamba = config.hybrid === 'hyb_mamba2';
   const isUserHybrid = config.hybrid !== 'hyb_none' && config.hybrid !== 'hyb_swa';
@@ -67,16 +70,21 @@ export function matchGalleryModels(
     const modelIsMoE = /moe/i.test(model.decoderType);
     const modelIsHybrid = /hybrid/i.test(model.decoderType);
     const modelIsRecurrent = /recurrent/i.test(model.decoderType);
+    const modelIsLoop = /loop/i.test(model.decoderType) || modelConcepts.has('looped_depth_sharing');
 
     let familyBonus = 0;
     if (isUserRecurrent && modelIsRecurrent) familyBonus = 0.25;
+    else if (isUserLoop && modelIsLoop && isUserMoE === modelIsMoE) familyBonus = 0.24;
+    else if (isUserLoop && modelIsLoop) familyBonus = 0.16;
     else if (isUserMoE === modelIsMoE && isUserHybrid === modelIsHybrid) familyBonus = 0.18;
     else if (isUserMoE === modelIsMoE) familyBonus = 0.08;
 
     // 3. Attention family bonus
     const attnStr = model.attention.toLowerCase();
     let attnBonus = 0;
-    if (config.attention === 'attn_mla' && /\bmla\b/.test(attnStr)) attnBonus = 0.12;
+    if (config.attention === 'attn_mla_dsa_loop' && /indexshare|cross-loop/.test(attnStr)) attnBonus = 0.16;
+    else if (config.attention === 'attn_mla_dsa_loop' && /mla|sparse attention/.test(attnStr)) attnBonus = 0.1;
+    else if (config.attention === 'attn_mla' && /\bmla\b/.test(attnStr)) attnBonus = 0.12;
     else if (config.attention === 'attn_mla_dsa' && /sparse attention/.test(attnStr)) attnBonus = 0.15;
     else if (config.attention === 'attn_csa_hca' && /csa|hca/.test(attnStr)) attnBonus = 0.16;
     else if (config.attention === 'attn_gqa' && /\bgqa\b/.test(attnStr)) attnBonus = 0.08;

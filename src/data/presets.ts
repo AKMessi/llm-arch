@@ -41,6 +41,45 @@ export const PRESET_BLUEPRINTS: PresetBlueprint[] = [
     },
   },
   {
+    id: 'glm-5-4',
+    name: 'GLM-5.4 (Loop 750B)',
+    company: 'Z.ai',
+    year: '2026',
+    tagline: 'Flagship Loop Transformer: 26 opening + 28 looped × 2 + 24 closing (106 eff. layers), β_k gated updates & Cross-Loop Hybrid KV.',
+    scaleBadge: '750B · 106L Eff',
+    kvBadge: '87.8 KiB + SWA',
+    galleryModelName: 'GLM-5.4',
+    config: {
+      name: 'GLM-5.4 Loop Transformer',
+      tokenizer: 'tok_glm5_155k',
+      position: 'pos_yarn_rope',
+      norm: 'norm_gated_loop',
+      attention: 'attn_mla_dsa_loop',
+      hybrid: 'hyb_none',
+      ffn: 'ffn_looped_moe',
+      output: 'out_mtp',
+      dims: {
+        dModel: 6144,
+        nLayers: 78,
+        nHeads: 64,
+        nKvHeads: 64,
+        dFf: 2048,
+        nExperts: 256,
+        activeExperts: 8,
+        nSharedExperts: 1,
+        densePrefixLayers: 3,
+        mlaKvLoraRank: 512,
+        mlaQkRopeDim: 64,
+        swaWindow: 1024,
+        hybridRatio: 3,
+        loopPasses: 2,
+        contextLength: 1048576,
+        batchSize: 1,
+        precision: 'fp8',
+      },
+    },
+  },
+  {
     id: 'deepseek-v3',
     name: 'DeepSeek V3 / R1',
     company: 'DeepSeek',
@@ -496,6 +535,7 @@ export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
   const v = model.vocabSize ?? 0;
   if (v >= 255000 || /gemma|cohere|command|zaya/i.test(model.name)) tokenizer = 'tok_gemma_262k';
   else if (v >= 220000 || /qwen3\.[568]|btl-3|ornith/i.test(model.name)) tokenizer = 'tok_qwen_248k';
+  else if (/glm-5/i.test(model.name) || (v >= 154000 && v <= 156000)) tokenizer = 'tok_glm5_155k';
   else if (v >= 145000 || /qwen|mimo|reflection|glm/i.test(model.name)) tokenizer = 'tok_qwen_152k';
   else if (/mistral/i.test(model.name) || (v >= 130000 && v <= 132000)) tokenizer = 'tok_tekken_131k';
   else if (/deepseek/i.test(model.name)) tokenizer = 'tok_deepseek_129k';
@@ -520,6 +560,7 @@ export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
   // 3. Normalization & Residuals
   let norm = 'norm_pre_rms';
   if (/gpt-2/i.test(model.name)) norm = 'norm_pre_ln';
+  else if (c.has('looped_depth_sharing') && c.has('gated_residuals')) norm = 'norm_gated_loop';
   else if (c.has('mhc')) norm = 'norm_mhc';
   else if (c.has('attention_residuals') || c.has('gated_residuals')) norm = 'norm_attn_res';
   else if (/gemma/i.test(model.name)) norm = 'norm_peri_gemma';
@@ -529,7 +570,9 @@ export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
   // 4. Primary Attention
   let attention = 'attn_gqa';
   if (c.has('csa_hca')) attention = 'attn_csa_hca';
-  else if (c.has('mla') && c.has('deepseek_sparse_attention')) attention = 'attn_mla_dsa';
+  else if (c.has('mla') && c.has('deepseek_sparse_attention') && c.has('looped_depth_sharing')) {
+    attention = 'attn_mla_dsa_loop';
+  } else if (c.has('mla') && c.has('deepseek_sparse_attention')) attention = 'attn_mla_dsa';
   else if (c.has('mla')) attention = 'attn_mla';
   else if (c.has('kv_sharing')) attention = 'attn_kv_sharing';
   else if (c.has('gated_attention')) attention = 'attn_gated_gqa';
@@ -555,7 +598,7 @@ export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
   } else if (/liv convolution|shortconv plus/i.test(attnText)) {
     hybrid = 'hyb_shortconv';
     hybridRatio = 3;
-  } else if (c.has('swa') || /sliding-window/i.test(attnText)) {
+  } else if ((c.has('swa') || /sliding-window/i.test(attnText)) && attention !== 'attn_mla_dsa_loop') {
     hybrid = 'hyb_swa';
     const rMatch = attnText.match(/(\d+):1/);
     if (rMatch) hybridRatio = Math.min(6, Math.max(1, parseInt(rMatch[1], 10)));
@@ -565,7 +608,11 @@ export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
   // 6. FFN / MoE
   let ffn = 'ffn_swiglu';
   let loopPasses = 1;
-  if (c.has('looped_depth_sharing')) {
+  if (c.has('looped_depth_sharing') && isMoE) {
+    ffn = 'ffn_looped_moe';
+    const passMatch = model.layerMix.match(/×\s*(\d+)/i);
+    loopPasses = passMatch ? Math.min(4, Math.max(2, parseInt(passMatch[1], 10))) : 2;
+  } else if (c.has('looped_depth_sharing')) {
     ffn = 'ffn_looped_depth';
     const passMatch = model.layerMix.match(/×\s*(\d+)\s*pass/i);
     loopPasses = passMatch ? Math.min(4, Math.max(2, parseInt(passMatch[1], 10))) : 2;

@@ -55,11 +55,13 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({
     config.norm === 'norm_pre_rms' ||
     config.norm === 'norm_rms_qknorm' ||
     config.norm === 'norm_mhc' ||
-    config.norm === 'norm_attn_res';
+    config.norm === 'norm_attn_res' ||
+    config.norm === 'norm_gated_loop';
   const isPeriNorm = config.norm === 'norm_peri_gemma';
   const isPostNorm = config.norm === 'norm_post_olmo';
   const isMhc = config.norm === 'norm_mhc';
   const isAttnRes = config.norm === 'norm_attn_res';
+  const isGatedLoopNorm = config.norm === 'norm_gated_loop';
   const hasQkNorm =
     config.norm === 'norm_rms_qknorm' ||
     config.norm === 'norm_peri_gemma' ||
@@ -69,6 +71,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({
   const isMla =
     config.attention === 'attn_mla' ||
     config.attention === 'attn_mla_dsa' ||
+    config.attention === 'attn_mla_dsa_loop' ||
     config.attention === 'attn_csa_hca';
   const isGatedAttn = config.attention === 'attn_gated_gqa';
   const isHybrid = config.hybrid !== 'hyb_none';
@@ -76,11 +79,13 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({
   const isMoE =
     config.ffn === 'ffn_moe_sparse' ||
     config.ffn === 'ffn_moe_shared' ||
-    config.ffn === 'ffn_latent_moe';
+    config.ffn === 'ffn_latent_moe' ||
+    config.ffn === 'ffn_looped_moe';
   const isTied = config.output === 'out_tied' || config.output === 'out_softcap';
   const hasMtp = config.output === 'out_mtp' || config.output === 'out_sinks_mtp';
   const hasSoftCap = config.output === 'out_softcap';
-  const isLooped = config.ffn === 'ffn_looped_depth';
+  const isLooped = config.ffn === 'ffn_looped_depth' || config.ffn === 'ffn_looped_moe';
+  const isSandwichLoop = config.ffn === 'ffn_looped_moe';
   const hasPle = config.position === 'pos_ple';
 
   const nKv =
@@ -272,13 +277,15 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({
           strokeDasharray="6 4"
         />
         {/* Block Stack Header Pill */}
-        <rect x="38" y="152" width="166" height="20" rx="4" fill={ink} />
-        <text x="48" y="165.5" fontSize="9.5" fontWeight="700" fontFamily="'JetBrains Mono', monospace" fill={isPaper ? '#fff' : '#0e1118'}>
-          DECODER BLOCK × {dims.nLayers}{isLooped ? ` × ${dims.loopPasses} LOOPS` : ''}
+        <rect x="38" y="152" width={isSandwichLoop ? 212 : 166} height="20" rx="4" fill={ink} />
+        <text x="48" y="165.5" fontSize="9.2" fontWeight="700" fontFamily="'JetBrains Mono', monospace" fill={isPaper ? '#fff' : '#0e1118'}>
+          {isSandwichLoop && physics.loopBreakdown
+            ? `LOOP ${physics.loopBreakdown.opening}+${physics.loopBreakdown.looped}×${physics.loopBreakdown.passes}+${physics.loopBreakdown.closing} (${physics.effectiveDepth} EFF)`
+            : `DECODER BLOCK × ${dims.nLayers}${isLooped ? ` × ${dims.loopPasses} LOOPS` : ''}`}
         </text>
-        <rect x="282" y="152" width="160" height="20" rx="4" fill={surface} stroke={border} />
-        <text x="362" y="165.5" textAnchor="middle" fontSize="8.5" fontWeight="600" fontFamily="'JetBrains Mono', monospace" fill={inkSec}>
-          {norm?.shortName} · {physics.layerMixSummary.slice(0, 15)}
+        <rect x={isSandwichLoop ? 264 : 282} y="152" width={isSandwichLoop ? 178 : 160} height="20" rx="4" fill={surface} stroke={border} />
+        <text x={isSandwichLoop ? 353 : 362} y="165.5" textAnchor="middle" fontSize="8.3" fontWeight="600" fontFamily="'JetBrains Mono', monospace" fill={inkSec}>
+          {norm?.shortName} · {physics.layerMixSummary.slice(0, 18)}
         </text>
 
         {/* Per-Layer Embedding Side Injection Arrow */}
@@ -381,7 +388,7 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({
               strokeWidth={highlightedStage === 'norm' ? 2 : 1.2}
             />
             <text x="240" y="206.5" textAnchor="middle" fontSize="9.5" fontWeight="700" fill={cNorm}>
-              Pre-{normShort} {isMhc ? '· H_pre' : ''}
+              Pre-{normShort} {isMhc ? '· H_pre' : isGatedLoopNorm ? '· β_k Gate' : ''}
             </text>
             <line x1="240" y1="214" x2="240" y2="226" stroke={borderStrong} strokeWidth="1.3" />
           </g>
@@ -521,24 +528,34 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({
 
               {/* Compressed Latent Cache Node */}
               <rect x="188" y="256" width="126" height="62" rx="5" fill={isPaper ? 'rgba(234,88,12,0.08)' : 'rgba(251,146,60,0.13)'} stroke={cAttn} strokeWidth="1.4" />
-              <text x="251" y="272" textAnchor="middle" fontSize="9" fontWeight="700" fill={cAttn}>
-                LATENT KV CACHE
+              <text x="251" y="272" textAnchor="middle" fontSize="8.6" fontWeight="700" fill={cAttn}>
+                {config.attention === 'attn_mla_dsa_loop' ? 'HYBRID LOOP KV' : 'LATENT KV CACHE'}
               </text>
               <text x="251" y="287" textAnchor="middle" fontSize="8.5" fontFamily="'JetBrains Mono', monospace" fill={ink}>
                 c_KV({dims.mlaKvLoraRank}) ⊕ k_R({dims.mlaQkRopeDim})
               </text>
-              <text x="251" y="304" textAnchor="middle" fontSize="8.5" fontWeight="700" fontFamily="'JetBrains Mono', monospace" fill={cFfn}>
-                {formatKiB(physics.kvKiBPerTokenBf16)}/tok (-{Math.min(99, Math.round((1 - 1 / Math.max(1, physics.kvCompressionVsMha)) * 100))}%)
+              <text x="251" y="304" textAnchor="middle" fontSize="8.2" fontWeight="700" fontFamily="'JetBrains Mono', monospace" fill={cFfn}>
+                {config.attention === 'attn_mla_dsa_loop'
+                  ? `P2: SWA(${formatContext(dims.swaWindow)})`
+                  : `${formatKiB(physics.kvKiBPerTokenBf16)}/tok (-${Math.min(99, Math.round((1 - 1 / Math.max(1, physics.kvCompressionVsMha)) * 100))}%)`}
               </text>
 
               <line x1="314" y1="287" x2="332" y2="287" stroke={borderStrong} strokeWidth="1.2" />
 
               <rect x="332" y="258" width="80" height="58" rx="4" fill={surfaceSub} stroke={border} />
-              <text x="372" y="280" textAnchor="middle" fontSize="9" fontWeight="700" fill={ink}>
-                {config.attention === 'attn_mla_dsa' || config.attention === 'attn_csa_hca' ? 'Top-k DSA' : 'Absorbed'}
+              <text x="372" y="280" textAnchor="middle" fontSize="8.8" fontWeight="700" fill={ink}>
+                {config.attention === 'attn_mla_dsa_loop'
+                  ? 'IdxShare'
+                  : config.attention === 'attn_mla_dsa' || config.attention === 'attn_csa_hca'
+                    ? 'Top-k DSA'
+                    : 'Absorbed'}
               </text>
-              <text x="372" y="295" textAnchor="middle" fontSize="8" fontFamily="'JetBrains Mono', monospace" fill={inkSec}>
-                {config.attention === 'attn_csa_hca' ? 'CSA/HCA' : 'W_UKV · W_O'}
+              <text x="372" y="295" textAnchor="middle" fontSize="7.8" fontFamily="'JetBrains Mono', monospace" fill={inkSec}>
+                {config.attention === 'attn_mla_dsa_loop'
+                  ? 'DSA Reuse'
+                  : config.attention === 'attn_csa_hca'
+                    ? 'CSA/HCA'
+                    : 'W_UKV · W_O'}
               </text>
             </g>
           ) : (
@@ -700,20 +717,22 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({
               </g>
 
               {/* Shared Expert or Latent Bottleneck Box */}
-              <rect x="338" y="466" width="76" height="44" rx="4" fill={surfaceSub} stroke={config.ffn === 'ffn_moe_shared' || config.ffn === 'ffn_latent_moe' ? cFfn : border} strokeDasharray={config.ffn === 'ffn_moe_sparse' ? '3 2' : undefined} />
+              <rect x="338" y="466" width="76" height="44" rx="4" fill={surfaceSub} stroke={config.ffn === 'ffn_moe_shared' || config.ffn === 'ffn_looped_moe' || config.ffn === 'ffn_latent_moe' ? cFfn : border} strokeDasharray={config.ffn === 'ffn_moe_sparse' ? '3 2' : undefined} />
               <text x="376" y="484" textAnchor="middle" fontSize="8.5" fontWeight="700" fill={config.ffn === 'ffn_moe_sparse' ? inkMuted : cFfn}>
                 {config.ffn === 'ffn_latent_moe'
                   ? 'Latent z'
-                  : config.ffn === 'ffn_moe_shared'
+                  : config.ffn === 'ffn_moe_shared' || config.ffn === 'ffn_looped_moe'
                     ? `${dims.nSharedExperts}× Shared`
                     : 'No Shared'}
               </text>
               <text x="376" y="498" textAnchor="middle" fontSize="7.5" fontFamily="'JetBrains Mono', monospace" fill={inkMuted}>
                 {config.ffn === 'ffn_latent_moe'
                   ? `d/2=${Math.round(dims.dModel / 2)}`
-                  : dims.densePrefixLayers > 0
-                    ? `${dims.densePrefixLayers}L Dense Pre`
-                    : 'All-MoE'}
+                  : isSandwichLoop && physics.loopBreakdown
+                    ? `${physics.loopBreakdown.looped}L × ${physics.loopBreakdown.passes} Loop`
+                    : dims.densePrefixLayers > 0
+                      ? `${dims.densePrefixLayers}L Dense Pre`
+                      : 'All-MoE'}
               </text>
             </g>
           ) : (
@@ -772,13 +791,15 @@ export const SchematicDiagram: React.FC<SchematicDiagramProps> = ({
             <path
               d="M 426 560 L 444 560 L 444 190 L 428 190"
               fill="none"
-              stroke={cFfn}
-              strokeWidth="1.6"
+              stroke={isGatedLoopNorm ? cPos : cFfn}
+              strokeWidth="1.7"
               strokeDasharray="4 3"
               className={animatePulse ? 'animate-tensor-flow' : ''}
             />
-            <text x="441" y="385" fontSize="8" fontWeight="700" fill={cFfn} transform="rotate(-90 441 385)" textAnchor="middle">
-              RECURRENT DEPTH LOOP ×{dims.loopPasses}
+            <text x="441" y="385" fontSize="7.8" fontWeight="700" fill={isGatedLoopNorm ? cPos : cFfn} transform="rotate(-90 441 385)" textAnchor="middle">
+              {isGatedLoopNorm
+                ? `GATED PROGRESSIVE β_k · LOOP ×${dims.loopPasses}`
+                : `RECURRENT DEPTH LOOP ×${dims.loopPasses}`}
             </text>
           </g>
         )}
