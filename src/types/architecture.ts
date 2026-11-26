@@ -103,9 +103,9 @@ export interface ArchitectureConfig {
 
 export interface LayerSpec {
   index: number; // 1-based
-  mixerKind: 'primary' | 'swa' | 'deltanet' | 'kda' | 'mamba2' | 'mlstm' | 'shortconv';
+  mixerKind: 'primary' | 'swa' | 'deltanet' | 'kda' | 'mamba2' | 'mamba3' | 'mlstm' | 'shortconv';
   mixerLabel: string;
-  ffnKind: 'dense' | 'moe' | 'latent_moe';
+  ffnKind: 'dense' | 'moe' | 'latent_moe' | 'ngram_moe';
   kvBytesPerTokenBf16: number;
   isLoopedPass?: number;
   loopRole?: 'opening' | 'looped' | 'closing';

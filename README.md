@@ -10,21 +10,21 @@
 
 ### Interactive Drag-and-Drop LLM Architecture Studio
 
-**Combine 53 real architectural blocks across 7 decoder stages — GLM-5.4 Sandwich Loop MoE, MLA/DSA + Cross-Loop Hybrid KV, Gated Progressive Loops (`β_k`), GQA, Gated DeltaNet, Mamba-2, Sparse & Latent MoE, QK-Norm, mHC Hyper-Connections, MTP heads & 9 tokenizers — and watch real KV-cache, VRAM, GPU fit, schematic diagrams, and PyTorch code react live.**
+**Combine 58 real architectural blocks across 7 decoder stages — GLM-5.4 & Inkling 2 Sandwich Loop MoE, Gated MLA + IndexShare, Differential Tensor-Product Attention (DiffTPA), Mamba-3 & Mamba-2 SSM, Shortcut MoE + N-Gram/Engram Tables, Gated DeltaNet, Latent MoE, QK-Norm, mHC Hyper-Connections, MTP heads & 10 tokenizers — and watch real KV-cache, VRAM, GPU fit, schematic diagrams, and PyTorch code react live.**
 
-Grounded in **121 open-weight models** — all 120 models from [Sebastian Raschka's LLM Architecture Gallery](https://sebastianraschka.com/llm-architecture-gallery/) plus **Z.ai's GLM-5.4 Loop Transformer** (`26 + 28×2 + 24 = 106 eff. layers`).
+Grounded in all **132 open-weight models** from [Sebastian Raschka's LLM Architecture Gallery](https://sebastianraschka.com/llm-architecture-gallery/).
 
 <br />
 
 [![Live Playground](https://img.shields.io/badge/Live_Playground-llmarch.online-ea580c?style=for-the-badge&logo=vercel&logoColor=white)](https://llmarch.online)
 [![GitHub Stars](https://img.shields.io/github/stars/AKMessi/llm-arch?style=for-the-badge&color=15171c&logo=github)](https://github.com/AKMessi/llm-arch/stargazers)
 [![License: MIT](https://img.shields.io/badge/License-MIT-059669?style=for-the-badge)](./LICENSE)
-[![Models](https://img.shields.io/badge/Gallery_Catalog-121_Real_LLMs-2563eb?style=for-the-badge)](https://sebastianraschka.com/llm-architecture-gallery/)
+[![Models](https://img.shields.io/badge/Gallery_Catalog-132_Real_LLMs-2563eb?style=for-the-badge)](https://sebastianraschka.com/llm-architecture-gallery/)
 
 <p>
   <a href="#-try-these-5-second-experiments">5-Second Experiments</a> &nbsp;·&nbsp;
   <a href="#-visual-tour">Visual Tour</a> &nbsp;·&nbsp;
-  <a href="#-53-modular-blocks-across-7-stages">53 Blocks</a> &nbsp;·&nbsp;
+  <a href="#-58-modular-blocks-across-7-stages">58 Blocks</a> &nbsp;·&nbsp;
   <a href="#-real-ml-systems-physics">Physics Engine</a> &nbsp;·&nbsp;
   <a href="#-quick-start">Quick Start</a> &nbsp;·&nbsp;
   <a href="#-contributing">Contributing</a>
@@ -53,7 +53,9 @@ Open **[llmarch.online](https://llmarch.online)** and try any of these live:
 | Experiment | What You Drag / Toggle | Live Result You See Immediately |
 | :--- | :--- | :--- |
 | **Llama 3 + DeepSeek MLA** | Start on `Llama 3 8B` → drop **MLA** into Stage 04 | KV-cache drops **72%** (`128 → 36.0 KiB/tok`), **1× RTX 4090** flips `OOM → Fits (80%)`, **1× H100 concurrency jumps 4×** (`3 → 12 users`), SVG schematic morphs to `c_KV(512) ⊕ k_R(64)` |
-| **Z.ai GLM-5.4 Loop Transformer** | Load `GLM-5.4 (Loop 750B)` from Presets | **Sandwich Loop layout (`26 + 28×2 + 24 = 106 eff. layers`)** in a 78-layer 744B MoE footprint, **`β_k` progressive gates**, **`87.8 KiB/tok` MLA + Pass-2 SWA(1024)** hybrid KV at **1M context**, plus authentic Sandwich Loop PyTorch codegen |
+| **Z.ai GLM-5.4 Loop Transformer** | Load `GLM-5.4 (Loop 750B)` from Presets | **Sandwich Loop layout (`26 + 28×2 + 24 = 106 eff. layers`)** in a 78-layer 750B MoE footprint, **`β_k` progressive gates**, **`93 KiB/tok` MLA/DSA (21 IndexShare) + Pass-2 SWA(128)** hybrid KV at **1M context** |
+| **LongCat-2.5 1.6T (MIT)** | Load `LongCat-2.5 (1.6T MIT)` from Presets | **768-expert Shortcut MoE + O(1) N-Gram/Engram tables** (`~3%` active), **Gated MLA + IndexShare**, `95 KiB/tok` KV at `524K` context |
+| **Olala v1.0 Mini (Mamba-3 + DiffTPA)** | Load `Olala v1.0 Mini (7A1B)` from Presets | **`29 Mamba-3 SSM + 7 DiffTPA`** rank-4 differential tensor-product attention + LatentMoE (`~15 KiB/tok` ultra-lean KV) |
 | **Frontier 1M-Context Hybrid** | Load `Qwen3.5 397B` or `Nemotron 3 Super` | **60-layer color-coded hybrid ribbon**, `8–30 KiB/tok` KV-cache, flat `4K → 1M` scaling curve vs. baseline MHA |
 | **Zero-KV Infinite Streamer** | Drop **Pure xLSTM / mLSTM** into Stage 05 | KV-cache hits **`0 B/token`**, enabling **400+ concurrent 256K streams** on 1× H100 |
 | **Recurrent-Depth Thinker** | Drop **Looped Depth Sharing (`×4`)** into Stage 06 | **128 effective reasoning layers** inside an 8B physical weight footprint |
@@ -64,7 +66,7 @@ Open **[llmarch.online](https://llmarch.online)** and try any of these live:
 ## 🎨 Visual Tour
 
 ### 1. Interactive Drag-and-Drop Canvas & Dynamic Schematic (Warm Drafting Paper)
-Drag any block from the left Module Library onto its matching stage — hover previews exact `ΔKV` and `ΔActive Params` before you release, while the live SVG schematic, layer ribbon, KV scaling curve, and 120-Model Gallery Match Radar update instantaneously.
+Drag any block from the left Module Library onto its matching stage — hover previews exact `ΔKV` and `ΔActive Params` before you release, while the live SVG schematic, layer ribbon, KV scaling curve, and 132-Model Gallery Match Radar update instantaneously.
 
 ![Warm Archival Drafting Paper Mode — Llama 3 with MLA](docs/preview-paper.png)
 
@@ -73,10 +75,10 @@ Switch seamlessly between **Archival Drafting Paper** and **Obsidian Blueprint**
 
 ![Obsidian Blueprint Dark Mode — DeepSeek V4-Pro](docs/preview-obsidian.png)
 
-### 3. 120-Model Pareto Frontier & Gallery Adoption Explorer
-Every real model from Sebastian Raschka's gallery is plotted on a log-scale **Total Parameters vs. KV-Cache/token** Pareto chart with **your custom build tracked live as a vermilion crosshair star**. Click any dot on the frontier to clone and remix that real model onto your canvas.
+### 3. 132-Model Pareto Frontier & Gallery Adoption Explorer
+Every real model from Sebastian Raschka's 132-model gallery is plotted on a log-scale **Total Parameters vs. KV-Cache/token** Pareto chart with **your custom build tracked live as a vermilion crosshair star**. Click any dot on the frontier to clone and remix that real model onto your canvas.
 
-![120-Model Pareto Frontier and Concept Adoption](docs/preview-pareto.png)
+![132-Model Pareto Frontier and Concept Adoption](docs/preview-pareto.png)
 
 ### 4. One-Click Shareable 2× Retina Architecture Spec Card PNG
 Export publication-grade `2400×1350px` Poster Cards (Paper or Obsidian style) with auto-classified architectural archetypes, 5 hero telemetry KPIs, all 7 stage specs, miniature layer topology ribbon, and Gallery DNA match %.
@@ -85,17 +87,17 @@ Export publication-grade `2400×1350px` Poster Cards (Paper or Obsidian style) w
 
 ---
 
-## 🧩 53 Modular Blocks Across 7 Stages
+## 🧩 58 Modular Blocks Across 7 Stages
 
 | Stage | Available Draggable Modules | Representative Models |
 | :--- | :--- | :--- |
-| **01 · Tokenizer & Vocab** | Compact 32k · GPT-2 BPE 50k · tiktoken 128k · DeepSeek BPE 129k · Tekken 131k · Qwen BPE 152k · **GLM-5 BPE 155k** · Ultra-Wide BPE 248k · SentencePiece 262k | GPT-2, Llama 3, DeepSeek V3/V4, Mistral Small 4, Qwen3.5/3.8, GLM-5.4, Gemma 3/4 |
-| **02 · Position & Embeddings** | Learned AbsPos · RoPE · YaRN / LongRoPE · Partial RoPE (`p-RoPE`) · Local-RoPE + Global-NoPE · Pure NoPE · RoPE + Per-Layer Embeddings (`PLE`) | Llama 3, Gemma 4, SmolLM3, Muse Spark, Ember-1, Gemma 4 E2B/E4B |
-| **03 · Norm & Residual Flow** | Pre-LayerNorm · Pre-RMSNorm · Pre-RMSNorm + QK-Norm · Peri-Norm (`4× RMSNorm`) · Post-RMSNorm + QK-Norm · **mHC 4-Lane Hyper-Connections** · Attention Residuals + Gate · **Gated Progressive Loop (`β_k`)** | GPT-2, Llama 3, Qwen3, Gemma 3/4, OLMo 2/3, DeepSeek V4, ERNIE 5.5, GLM-5.4 |
-| **04 · Primary Sequence Mixer** | MHA · MQA · GQA · Sink-Free Gated GQA (`σ`) · **MLA** · **MLA + DeepSeek Sparse Attention (DSA)** · **MLA/DSA + Cross-Loop Hybrid KV (`IndexShare` + `SWA 1024`)** · **CSA / HCA** · Cross-Layer KV Sharing | OLMo 2, Llama 3, Qwen3.6, DeepSeek V3/V3.2/V4, GLM-5/5.4, Gemma 4 E-Series |
-| **05 · Hybrid Layer Interleave** | Uniform Stack · Sliding-Window / Global (`1:1`–`6:1`) · **Gated DeltaNet** · **Kimi Delta Attention (KDA)** · **Mamba-2 SSM** · LIV ShortConv · **Pure xLSTM / mLSTM** | Gemma 3/4, OLMo 3, Qwen3.5/3.8, Ember-1, Nemotron 3, Liquid LFM2, xLSTM 7B |
-| **06 · Feed-Forward / MoE** | Classic GELU MLP · Dense SwiGLU · Dense GeGLU · Sparse MoE (Top-k) · Fine-Grained MoE + Shared Experts + Dense Prefix · **Latent MoE** · **Looped Depth Sharing (`×K`)** · **Looped Sparse MoE (Sandwich `×K`)** | GPT-2, Llama 3, Gemma 3, Qwen3-MoE, DeepSeek V3, Nemotron 3.5, Dory 1.0, Ouro, **GLM-5.4** |
-| **07 · LM Head & Objectives** | Untied Linear LM Head · Weight-Tied Embeddings · **Multi-Token Prediction (`MTP-k`)** · Tied + Logit Soft-Cap · MTP + Learned Attention Sinks | Llama 3, Gemma 3, DeepSeek V3/R1/V4, GLM-5.4, GPT-OSS, Reflection Beam |
+| **01 · Tokenizer & Vocab** | Compact 32k · GPT-2 BPE 50k · tiktoken 128k · DeepSeek BPE 129k · Tekken 131k · Qwen BPE 152k · **GLM-5 BPE 155k** · **o200k / Inkling 200k** · Ultra-Wide BPE 248k · SentencePiece 262k | GPT-2, Llama 3, DeepSeek V3/V4, Mistral Small 4, Qwen3.5/3.8, GLM-5.4, Inkling 2, Gemma 3/4 |
+| **02 · Position & Embeddings** | Learned AbsPos · RoPE · YaRN / LongRoPE · Partial RoPE (`p-RoPE`) · Local-RoPE + Global-NoPE · Pure NoPE · RoPE + Per-Layer Embeddings (`PLE`) | Llama 3, Gemma 4, Marin Mochi, Muse Spark, Ember-1, Domyn Edge, Gemma 4 E2B/E4B |
+| **03 · Norm & Residual Flow** | Pre-LayerNorm · Pre-RMSNorm · Pre-RMSNorm + QK-Norm · Peri-Norm (`4× RMSNorm`) · Post-RMSNorm + QK-Norm · **mHC 4-Lane Hyper-Connections** · Attention Residuals + Gate · **Gated Progressive Loop (`β_k`)** | GPT-2, Llama 3, Qwen3, Gemma 3/4, OLMo 2/3, DeepSeek V4, Tencent Hy4, Inkling 2, GLM-5.4 |
+| **04 · Primary Sequence Mixer** | MHA · MQA · GQA · Sink-Free Gated GQA (`σ`) · **MLA** · **MLA + DSA** · **MLA/DSA + Cross-Loop Hybrid KV (`SWA 128`)** · **Gated MLA + IndexCache** · **DiffTPA (Rank-4)** · **CSA / HCA** · Cross-Layer KV Sharing | OLMo 2, Llama 3, Qwen3.6, DeepSeek V3/V4, GLM-5.4, Tencent Hy4, LongCat-2.5, AMD Instella-MoE, Olala v1.0 |
+| **05 · Hybrid Layer Interleave** | Uniform Stack · Sliding-Window / Global (`1:1`–`6:1`) · **Gated DeltaNet** · **Kimi Delta Attention (KDA)** · **Mamba-2 SSM** · **Mamba-3 SSM** · LIV ShortConv · **Pure xLSTM / mLSTM** | Gemma 3/4, Inkling 2, Qwen3.5/3.8, Arete 27B, Ember-1, Nemotron 3, Olala v1.0, Liquid LFM2/3, xLSTM 7B |
+| **06 · Feed-Forward / MoE** | Classic GELU MLP · Dense SwiGLU · Dense GeGLU · Sparse MoE (Top-k) · Fine-Grained MoE + Shared · **Latent MoE** · **Looped Depth (`×K`)** · **Looped Sparse MoE (Sandwich `×K`)** · **Shortcut MoE + N-Gram / Engram** | GPT-2, Llama 3, Gemma 3, Qwen3-MoE, DeepSeek V3/V4.1, Marin Mochi, GLM-5.4, Inkling 2 Mini, LongCat-2.5 |
+| **07 · LM Head & Objectives** | Untied Linear LM Head · Weight-Tied Embeddings · **Multi-Token Prediction (`MTP-k`)** · Tied + Logit Soft-Cap · MTP + Learned Attention Sinks | Llama 3, Gemma 3, DeepSeek V3/R1/V4, GLM-5.4, LongCat-2.5, GPT-OSS, Reflection Beam |
 
 ---
 
@@ -103,9 +105,9 @@ Export publication-grade `2400×1350px` Poster Cards (Paper or Obsidian style) w
 
 - **Live Token Forward-Pass Tracer:** Step a single token (`"attention"`, `#48291`) through Stages `1 → 7` with synchronized pipeline & schematic highlights, exact tensor shapes, memory reads (MB/GB), and microsecond stage latency shares.
 - **8 ML Systems Design Missions:** Live-evaluated engineering challenges (*Single RTX 4090 Monster*, *Million-Token Context Survivor*, *2019 → 2026 Modernization*, *5%-Active Frontier Titan*, *Sink-Free Deep Dense*, *262k Polyglot Edge Diet*, *Recurrent-Depth Reasoning*, *Zero-KV Infinite Streamer*) with a pinnable live HUD and persistent local progress.
-- **Attention Matrix & Live Tokenizer Sandbox:** Hoverable `16×16` causal / SWA / Top-k DSA / DeltaNet / Mamba-2 / Attention-Sink heatmap + live head-to-head tokenizer compression comparator across code, prose, multilingual math, and JSON.
-- **Diff & Surgical Cherry-Pick Arena:** Benchmark your active Blueprint A against any of the 13 presets, all 121 gallery models, or a local snapshot — and cherry-pick individual stages from Model B → A in one click.
-- **Export Suite + `⌘K` Command Palette + Local Vault:** Generate runnable PyTorch `nn.Module` (`model.py`), Hugging Face `config.json`, SVG/PNG schematics, 2× Retina Spec Cards, and URL-hash shareable blueprints (`#bp=...`). Press **`⌘K` / `Ctrl+K`** anywhere to jump to any of 53 blocks, 121 models, or 8 missions.
+- **Attention Matrix & Live Tokenizer Sandbox:** Hoverable `16×16` causal / SWA / Top-k DSA / DeltaNet / Mamba-2 / Mamba-3 / Attention-Sink heatmap + live head-to-head tokenizer compression comparator across code, prose, multilingual math, and JSON.
+- **Diff & Surgical Cherry-Pick Arena:** Benchmark your active Blueprint A against any of the 16 presets, all 132 gallery models, or a local snapshot — and cherry-pick individual stages from Model B → A in one click.
+- **Export Suite + `⌘K` Command Palette + Local Vault:** Generate runnable PyTorch `nn.Module` (`model.py`), Hugging Face `config.json`, SVG/PNG schematics, 2× Retina Spec Cards, and URL-hash shareable blueprints (`#bp=...`). Press **`⌘K` / `Ctrl+K`** anywhere to jump to any of 58 blocks, 132 models, or 8 missions.
 
 ---
 
@@ -128,8 +130,8 @@ Every metric in the right Telemetry Dock is computed analytically from your equi
 
 ```mermaid
 flowchart LR
-  A["53 Component Blocks\n(src/data/components.ts)"] --> C["Interactive Canvas\n(BlueprintCanvas.tsx)"]
-  B["121 Gallery Models\n(galleryModels.json)"] --> D["Similarity & Pareto\n(similarity.ts)"]
+  A["58 Component Blocks\n(src/data/components.ts)"] --> C["Interactive Canvas\n(BlueprintCanvas.tsx)"]
+  B["132 Gallery Models\n(galleryModels.json)"] --> D["Similarity & Pareto\n(similarity.ts)"]
   C --> E["ML Physics Engine\n(physics.ts)"]
   E --> F["Dynamic SVG Schematic\n(SchematicDiagram.tsx)"]
   E --> G["Advisor & 8 Missions\n(diagnostics.ts, challenges.ts)"]
@@ -141,29 +143,29 @@ flowchart LR
 src/
 ├── components/
 │   ├── BlueprintCanvas.tsx      # 7-stage drop zones, live ΔKV hover previews & geometry sliders
-│   ├── ComponentPalette.tsx     # Searchable 53-block library with pointer drag & touch tap
+│   ├── ComponentPalette.tsx     # Searchable 58-block library with pointer drag & touch tap
 │   ├── SchematicDiagram.tsx     # Dynamic Raschka-style vector SVG blueprint + SVG/PNG export
 │   ├── LayerStackStrip.tsx      # Interactive L1..LN layer schedule ribbon (incl. Sandwich Loop)
 │   ├── TokenTraceBar.tsx        # 7-step live single-token forward-pass tracer
 │   ├── TelemetryDock.tsx        # Live KPIs, 4K->1M KV chart, GPU fit, Advisor & Gallery Radar
 │   ├── MissionsView.tsx         # 8 live-evaluated ML systems design missions
 │   ├── SimulationLab.tsx        # 16x16 Attention Mask Matrix + Live Tokenizer Sandbox
-│   ├── ParetoFrontierChart.tsx  # 121-Model Scale vs. KV-Cache Pareto scatter + adoption bars
+│   ├── ParetoFrontierChart.tsx  # 132-Model Scale vs. KV-Cache Pareto scatter + adoption bars
 │   ├── CompareView.tsx          # Side-by-side benchmark & surgical stage cherry-picking
 │   ├── CodeExportView.tsx       # Live PyTorch nn.Module & Hugging Face config.json export
 │   ├── SpecCardModal.tsx        # 2x Retina 1200x675 shareable Spec Card PNG studio
-│   ├── GalleryModal.tsx         # Filterable 121-model Architecture Gallery explorer
+│   ├── GalleryModal.tsx         # Filterable 132-model Architecture Gallery explorer
 │   └── CommandPalette.tsx       # ⌘K / Ctrl+K instant search across blocks, models & missions
 ├── data/
-│   ├── components.ts            # 53 architectural blocks (formulas, pros/tradeoffs, examples)
-│   ├── galleryModels.json       # 121 real open-weight models (Raschka Gallery + Z.ai GLM-5.4)
-│   ├── presets.ts               # 13 landmark presets + 121-model auto-mapper
+│   ├── components.ts            # 58 architectural blocks (formulas, pros/tradeoffs, examples)
+│   ├── galleryModels.json       # 132 real open-weight models (Sebastian Raschka Gallery)
+│   ├── presets.ts               # 16 landmark presets + 132-model auto-mapper
 │   ├── challenges.ts            # 8 design mission evaluators + architectural archetype classifier
 │   └── tokenizerSamples.ts      # Live multi-family BPE / SentencePiece segmentation simulator
 └── engine/
     ├── physics.ts               # Exact params, KV-cache, concurrency, economics & 7-step trace
     ├── diagnostics.ts           # Real-time compatibility linter & 1-click fix advisor
-    ├── similarity.ts            # Live cosine/Jaccard architectural matcher across 121 models
+    ├── similarity.ts            # Live cosine/Jaccard architectural matcher across 132 models
     ├── codegen.ts               # PyTorch nn.Module, HF config.json & URL hash codec
     └── specCardRenderer.ts      # Offscreen Canvas 2D Retina PNG poster renderer
 ```
@@ -194,7 +196,7 @@ npm run preview
 ```
 
 ### Keyboard Shortcuts
-- **`⌘K` / `Ctrl+K`** — Open Command Palette (search all 53 blocks, 121 models & 8 missions)
+- **`⌘K` / `Ctrl+K`** — Open Command Palette (search all 58 blocks, 132 models & 8 missions)
 - **`Ctrl+Z` / `⌘Z`** — Undo architecture change
 - **`Ctrl+Y` / `⌘⇧Z`** — Redo architecture change
 

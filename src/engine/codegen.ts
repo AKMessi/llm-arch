@@ -19,13 +19,17 @@ export function generateHuggingFaceConfig(
     config.ffn === 'ffn_moe_sparse' ||
     config.ffn === 'ffn_moe_shared' ||
     config.ffn === 'ffn_latent_moe' ||
-    config.ffn === 'ffn_looped_moe';
+    config.ffn === 'ffn_looped_moe' ||
+    config.ffn === 'ffn_ngram_moe';
   const isMla =
     config.attention === 'attn_mla' ||
     config.attention === 'attn_mla_dsa' ||
     config.attention === 'attn_mla_dsa_loop' ||
+    config.attention === 'attn_gated_mla' ||
     config.attention === 'attn_csa_hca';
   const isLoopHybridKv = config.attention === 'attn_mla_dsa_loop';
+  const hasIndexShare =
+    config.attention === 'attn_mla_dsa_loop' || config.attention === 'attn_gated_mla';
   const isSandwichLoop = config.ffn === 'ffn_looped_moe';
   const isFullLoop = config.ffn === 'ffn_looped_depth';
   const isLooped = isSandwichLoop || isFullLoop;
@@ -65,16 +69,19 @@ export function generateHuggingFaceConfig(
     hybrid_ratio: config.hybrid !== 'hyb_none' ? `${dims.hybridRatio}:1` : null,
     sliding_window: config.hybrid === 'hyb_swa' || isLoopHybridKv ? dims.swaWindow : null,
     cross_loop_hybrid_kv: isLoopHybridKv,
-    cross_loop_index_share: isLoopHybridKv,
+    cross_loop_index_share: hasIndexShare,
     kv_lora_rank: isMla ? dims.mlaKvLoraRank : null,
     qk_rope_head_dim: isMla ? dims.mlaQkRopeDim : null,
     ffn_type: ffn?.id,
     num_routed_experts: isMoE ? dims.nExperts : null,
     num_experts_per_tok: isMoE ? dims.activeExperts : null,
     num_shared_experts:
-      config.ffn === 'ffn_moe_shared' || config.ffn === 'ffn_looped_moe'
+      config.ffn === 'ffn_moe_shared' ||
+      config.ffn === 'ffn_looped_moe' ||
+      config.ffn === 'ffn_ngram_moe'
         ? dims.nSharedExperts
         : 0,
+    ngram_engram_tables: config.ffn === 'ffn_ngram_moe',
     first_k_dense_replace: isMoE ? dims.densePrefixLayers : 0,
     looped_depth_passes: isLooped ? dims.loopPasses : 1,
     ...(physics.loopBreakdown
@@ -125,16 +132,22 @@ export function generatePyTorchCode(
     config.attention === 'attn_mla' ||
     config.attention === 'attn_mla_dsa' ||
     config.attention === 'attn_mla_dsa_loop' ||
+    config.attention === 'attn_gated_mla' ||
     config.attention === 'attn_csa_hca';
   const isLoopHybridKv = config.attention === 'attn_mla_dsa_loop';
-  const isGatedAttn = config.attention === 'attn_gated_gqa';
+  const isGatedMla = config.attention === 'attn_gated_mla';
+  const isGatedAttn =
+    config.attention === 'attn_gated_gqa' || config.attention === 'attn_difftpa';
   const isMoE =
     config.ffn === 'ffn_moe_sparse' ||
     config.ffn === 'ffn_moe_shared' ||
     config.ffn === 'ffn_latent_moe' ||
-    config.ffn === 'ffn_looped_moe';
+    config.ffn === 'ffn_looped_moe' ||
+    config.ffn === 'ffn_ngram_moe';
   const hasSharedExperts =
-    (config.ffn === 'ffn_moe_shared' || config.ffn === 'ffn_looped_moe') &&
+    (config.ffn === 'ffn_moe_shared' ||
+      config.ffn === 'ffn_looped_moe' ||
+      config.ffn === 'ffn_ngram_moe') &&
     dims.nSharedExperts > 0;
   const isSandwichLoop = config.ffn === 'ffn_looped_moe';
   const isFullLoop = config.ffn === 'ffn_looped_depth';
@@ -229,7 +242,11 @@ ${
         self.w_dkv = nn.Linear(cfg.d_model, cfg.kv_lora_rank + cfg.qk_rope_dim, bias=False)
         self.kv_norm = RMSNorm(cfg.kv_lora_rank)
         self.w_ukv = nn.Linear(cfg.kv_lora_rank, cfg.n_heads * 2 * cfg.d_head, bias=False)
-        self.w_o = nn.Linear(cfg.n_heads * cfg.d_head, cfg.d_model, bias=False)
+        self.w_o = nn.Linear(cfg.n_heads * cfg.d_head, cfg.d_model, bias=False)${
+          isGatedMla
+            ? `\n        self.w_gate = nn.Linear(cfg.d_model, cfg.n_heads * cfg.d_head, bias=False)  # Gated MLA output gate`
+            : ''
+        }
 
     def forward(self, x: torch.Tensor${isLoopHybridKv ? ', loop_pass: int = 0' : ''}) -> torch.Tensor:
         B, T, _ = x.shape
@@ -245,7 +262,10 @@ ${
         }
         k = torch.cat([k_nope, k_rope.unsqueeze(2).expand(-1, -1, self.n_heads, -1)], dim=-1)
         out = F.scaled_dot_product_attention(q.transpose(1, 2), k.transpose(1, 2), v.transpose(1, 2), is_causal=True)
-        return self.w_o(out.transpose(1, 2).reshape(B, T, -1))`
+        out = out.transpose(1, 2).reshape(B, T, -1)${
+          isGatedMla ? `\n        out = out * torch.sigmoid(self.w_gate(x))  # Sink-free Gated MLA` : ''
+        }
+        return self.w_o(out)`
     : `class SequenceAttention(nn.Module):
     """${attn?.name} (${dims.nHeads} Q heads : ${nKv} KV heads${useQkNorm ? ' + QK-Norm' : ''}${isGatedAttn ? ' + Output Gate σ' : ''})."""
     def __init__(self, cfg: ModelConfig):

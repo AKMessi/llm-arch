@@ -31,9 +31,11 @@ const FEATURED_CONCEPTS = [
   'moe',
   'swa',
   'qk_norm',
-  'gated_deltanet',
+  'hybrid_attention',
   'gated_attention',
   'deepseek_sparse_attention',
+  'index_share',
+  'attention_residuals',
   'mhc',
   'latent_moe',
   'mtp',
@@ -166,7 +168,7 @@ export const GalleryModal: React.FC<GalleryModalProps> = ({
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search GLM-5.4, DeepSeek, Qwen3.5, Gemma 4, Nemotron, MLA, Mamba-2, mHC…"
+                placeholder="Search GLM-5.4, LongCat-2.5, Inkling 2, Olala, DeepSeek, Qwen3.5, Gemma 4, MLA, Mamba-3…"
                 className="w-full pl-8 pr-3 py-1.5 rounded-md border text-[12px] focus:outline-none"
                 style={{
                   backgroundColor: 'var(--bg-panel)',

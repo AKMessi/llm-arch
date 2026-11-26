@@ -192,16 +192,31 @@ export default function App() {
         (comp.id === 'ffn_moe_sparse' ||
           comp.id === 'ffn_moe_shared' ||
           comp.id === 'ffn_latent_moe' ||
-          comp.id === 'ffn_looped_moe');
+          comp.id === 'ffn_looped_moe' ||
+          comp.id === 'ffn_ngram_moe');
       const leavingMoE = comp.stage === 'ffn' && !enteringMoE && prev.dims.nExperts > 1;
 
       if (enteringMoE && prev.dims.nExperts <= 1) {
         nextDims.nExperts =
-          comp.id === 'ffn_looped_moe' ? 256 : comp.id === 'ffn_moe_shared' ? 128 : 64;
+          comp.id === 'ffn_ngram_moe'
+            ? 384
+            : comp.id === 'ffn_looped_moe'
+              ? 256
+              : comp.id === 'ffn_moe_shared'
+                ? 128
+                : 64;
         nextDims.activeExperts =
-          comp.id === 'ffn_moe_shared' || comp.id === 'ffn_looped_moe' ? 8 : 6;
+          comp.id === 'ffn_ngram_moe'
+            ? 12
+            : comp.id === 'ffn_moe_shared' || comp.id === 'ffn_looped_moe'
+              ? 8
+              : 6;
         nextDims.nSharedExperts =
-          comp.id === 'ffn_moe_shared' || comp.id === 'ffn_looped_moe' ? 1 : 0;
+          comp.id === 'ffn_moe_shared' ||
+          comp.id === 'ffn_looped_moe' ||
+          comp.id === 'ffn_ngram_moe'
+            ? 1
+            : 0;
         nextDims.densePrefixLayers =
           comp.id === 'ffn_looped_moe' ? 3 : comp.id === 'ffn_moe_shared' ? 2 : 0;
         nextDims.dFf = Math.min(2048, Math.max(1024, Math.round(prev.dims.dModel / 2)));
@@ -226,8 +241,14 @@ export default function App() {
         nextDims.loopPasses = 1;
       }
 
+      if (comp.id === 'attn_mla_dsa_loop') {
+        nextDims.swaWindow = 128;
+      }
+
       if (comp.id === 'hyb_mamba2') {
         nextDims.hybridRatio = 5;
+      } else if (comp.id === 'hyb_mamba3') {
+        nextDims.hybridRatio = 4;
       } else if (comp.id === 'hyb_deltanet' || comp.id === 'hyb_kda') {
         nextDims.hybridRatio = 3;
       }
@@ -424,7 +445,8 @@ export default function App() {
       ffn.id === 'ffn_moe_sparse' ||
       ffn.id === 'ffn_moe_shared' ||
       ffn.id === 'ffn_latent_moe' ||
-      ffn.id === 'ffn_looped_moe';
+      ffn.id === 'ffn_looped_moe' ||
+      ffn.id === 'ffn_ngram_moe';
     const dModel = pick([2048, 3072, 4096, 5120, 6144]);
     const nLayers = pick([24, 32, 40, 48, 60, 78]);
     const nHeads = Math.max(16, Math.round(dModel / 128));
@@ -445,11 +467,14 @@ export default function App() {
         nHeads,
         nKvHeads: Math.min(8, nHeads / 4),
         dFf: isMoE ? 1536 : Math.round((dModel * 3.5) / 256) * 256,
-        nExperts: isMoE ? pick([64, 128, 256]) : 1,
+        nExperts: isMoE ? pick([64, 128, 256, 384]) : 1,
         activeExperts: isMoE ? pick([4, 6, 8]) : 1,
-        nSharedExperts: ffn.id === 'ffn_moe_shared' || ffn.id === 'ffn_looped_moe' ? 1 : 0,
+        nSharedExperts:
+          ffn.id === 'ffn_moe_shared' || ffn.id === 'ffn_looped_moe' || ffn.id === 'ffn_ngram_moe'
+            ? 1
+            : 0,
         densePrefixLayers: ffn.id === 'ffn_looped_moe' ? 3 : ffn.id === 'ffn_moe_shared' ? 2 : 0,
-        hybridRatio: hyb.id === 'hyb_mamba2' ? 5 : pick([3, 5]),
+        hybridRatio: hyb.id === 'hyb_mamba2' ? 5 : hyb.id === 'hyb_mamba3' ? 4 : pick([3, 5]),
         loopPasses: ffn.id === 'ffn_looped_depth' || ffn.id === 'ffn_looped_moe' ? 2 : 1,
         contextLength: pick([65536, 131072, 262144, 1048576]),
       },

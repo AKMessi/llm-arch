@@ -45,9 +45,9 @@ export const PRESET_BLUEPRINTS: PresetBlueprint[] = [
     name: 'GLM-5.4 (Loop 750B)',
     company: 'Z.ai',
     year: '2026',
-    tagline: 'Flagship Loop Transformer: 26 opening + 28 looped × 2 + 24 closing (106 eff. layers), β_k gated updates & Cross-Loop Hybrid KV.',
+    tagline: 'Flagship Loop Transformer: 26 opening + 28 looped × 2 + 24 closing (106 eff. layers), β_k gates & MLA/DSA + SWA(128) Pass-2 KV.',
     scaleBadge: '750B · 106L Eff',
-    kvBadge: '87.8 KiB + SWA',
+    kvBadge: '93 KiB + SWA(128)',
     galleryModelName: 'GLM-5.4',
     config: {
       name: 'GLM-5.4 Loop Transformer',
@@ -70,12 +70,129 @@ export const PRESET_BLUEPRINTS: PresetBlueprint[] = [
         densePrefixLayers: 3,
         mlaKvLoraRank: 512,
         mlaQkRopeDim: 64,
-        swaWindow: 1024,
+        swaWindow: 128,
         hybridRatio: 3,
         loopPasses: 2,
         contextLength: 1048576,
         batchSize: 1,
         precision: 'fp8',
+      },
+    },
+  },
+  {
+    id: 'longcat-2-5',
+    name: 'LongCat-2.5 (1.6T MIT)',
+    company: 'Meituan',
+    year: '2026',
+    tagline: 'MIT-licensed 1.6T flagship: MLA + LSA IndexShare, Shortcut MoE (12/768 + 128 identity) & 135B n-gram tables.',
+    scaleBadge: '1.6T · 48B Act',
+    kvBadge: '95 KiB/tok',
+    galleryModelName: 'LongCat-2.5 1.6T-A48B',
+    config: {
+      name: 'LongCat-2.5 1.6T Blueprint',
+      tokenizer: 'tok_glm5_155k',
+      position: 'pos_yarn_rope',
+      norm: 'norm_pre_rms',
+      attention: 'attn_gated_mla',
+      hybrid: 'hyb_none',
+      ffn: 'ffn_ngram_moe',
+      output: 'out_mtp',
+      dims: {
+        dModel: 6144,
+        nLayers: 76,
+        nHeads: 64,
+        nKvHeads: 64,
+        dFf: 1280,
+        nExperts: 768,
+        activeExperts: 12,
+        nSharedExperts: 1,
+        densePrefixLayers: 0,
+        mlaKvLoraRank: 544,
+        mlaQkRopeDim: 64,
+        swaWindow: 4096,
+        hybridRatio: 3,
+        loopPasses: 1,
+        contextLength: 524288,
+        batchSize: 1,
+        precision: 'fp8',
+      },
+    },
+  },
+  {
+    id: 'inkling-2-mini',
+    name: 'Inkling 2 Mini (Loop ×3)',
+    company: 'Thinking Machines Lab',
+    year: '2026',
+    tagline: '3-Pass Sandwich Loop MoE (6 + 12×3 + 6 = 48 eff. layers), 5:1 SWA/Gated GQA, Attention Residuals & 1M ctx.',
+    scaleBadge: '26.4B · 48L Eff',
+    kvBadge: '192 KiB/tok',
+    galleryModelName: 'Inkling 2 Mini',
+    config: {
+      name: 'Inkling 2 Mini (3-Pass Loop)',
+      tokenizer: 'tok_o200k',
+      position: 'pos_rope',
+      norm: 'norm_attn_res',
+      attention: 'attn_gated_gqa',
+      hybrid: 'hyb_swa',
+      ffn: 'ffn_looped_moe',
+      output: 'out_untied',
+      dims: {
+        dModel: 3072,
+        nLayers: 24,
+        nHeads: 24,
+        nKvHeads: 8,
+        dFf: 1024,
+        nExperts: 128,
+        activeExperts: 8,
+        nSharedExperts: 0,
+        densePrefixLayers: 0,
+        mlaKvLoraRank: 512,
+        mlaQkRopeDim: 64,
+        swaWindow: 1024,
+        hybridRatio: 5,
+        loopPasses: 3,
+        contextLength: 1048576,
+        batchSize: 1,
+        precision: 'bf16',
+      },
+    },
+  },
+  {
+    id: 'olala-v1-mini',
+    name: 'Olala v1.0 Mini (7A1B)',
+    company: 'OVHai LLM',
+    year: '2026',
+    tagline: '29 Mamba-3 SSM + 7 Differential Tensor-Product Attn (DiffTPA) + LatentMoE (6/256) — 15.3 KiB rank-4 KV!',
+    scaleBadge: '6.8B · 1B Act',
+    kvBadge: '15.3 KiB/tok',
+    galleryModelName: 'Olala v1.0 Mini 7A1B',
+    config: {
+      name: 'Olala v1.0 Mini (Mamba-3 + DiffTPA)',
+      tokenizer: 'tok_qwen_152k',
+      position: 'pos_pure_nope',
+      norm: 'norm_rms_qknorm',
+      attention: 'attn_difftpa',
+      hybrid: 'hyb_mamba3',
+      ffn: 'ffn_latent_moe',
+      output: 'out_untied',
+      dims: {
+        dModel: 1536,
+        nLayers: 36,
+        nHeads: 36,
+        nKvHeads: 12,
+        dFf: 256,
+        nExperts: 256,
+        activeExperts: 6,
+        nSharedExperts: 1,
+        densePrefixLayers: 0,
+        mlaKvLoraRank: 512,
+        mlaQkRopeDim: 64,
+        swaWindow: 4096,
+        hybridRatio: 4,
+        loopPasses: 1,
+        contextLength: 32768,
+        batchSize: 1,
+        precision: 'bf16',
       },
     },
   },
@@ -511,7 +628,7 @@ export const PRESET_BLUEPRINTS: PresetBlueprint[] = [
 ];
 
 /**
- * Intelligently maps ANY of the 120 real models from Sebastian Raschka's
+ * Intelligently maps ANY of the 132 real models from Sebastian Raschka's
  * LLM Architecture Gallery into a faithful playable ArchitectureConfig!
  */
 export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
@@ -527,18 +644,19 @@ export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
   }
 
   const c = new Set(model.concepts);
-  const attnText = (model.attention + ' ' + model.layerMix + ' ' + model.highlight).toLowerCase();
+  const attnText = (model.attention + ' ' + model.layerMix + ' ' + model.highlight + ' ' + model.summary).toLowerCase();
   const isMoE = c.has('moe') || /moe/i.test(model.decoderType);
 
   // 1. Tokenizer selection by vocab size or company
   let tokenizer = 'tok_llama3_128k';
   const v = model.vocabSize ?? 0;
   if (v >= 255000 || /gemma|cohere|command|zaya/i.test(model.name)) tokenizer = 'tok_gemma_262k';
-  else if (v >= 220000 || /qwen3\.[568]|btl-3|ornith/i.test(model.name)) tokenizer = 'tok_qwen_248k';
-  else if (/glm-5/i.test(model.name) || (v >= 154000 && v <= 156000)) tokenizer = 'tok_glm5_155k';
-  else if (v >= 145000 || /qwen|mimo|reflection|glm/i.test(model.name)) tokenizer = 'tok_qwen_152k';
+  else if (v >= 220000 || /qwen3\.[568]|btl-3|ornith|arete/i.test(model.name)) tokenizer = 'tok_qwen_248k';
+  else if ((v >= 195000 && v <= 210000) || /inkling 2|gpt-oss/i.test(model.name)) tokenizer = 'tok_o200k';
+  else if (/glm-5|longcat-2\.5|nanbeige 4\.3/i.test(model.name) || (v >= 154000 && v <= 170000)) tokenizer = 'tok_glm5_155k';
+  else if (v >= 145000 || /qwen|mimo|reflection|glm|olala/i.test(model.name)) tokenizer = 'tok_qwen_152k';
   else if (/mistral/i.test(model.name) || (v >= 130000 && v <= 132000)) tokenizer = 'tok_tekken_131k';
-  else if (/deepseek/i.test(model.name)) tokenizer = 'tok_deepseek_129k';
+  else if (/deepseek|datology/i.test(model.name)) tokenizer = 'tok_deepseek_129k';
   else if (v > 0 && v <= 55000) tokenizer = 'tok_gpt2_50k';
 
   // 2. Position encoding
@@ -561,17 +679,20 @@ export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
   let norm = 'norm_pre_rms';
   if (/gpt-2/i.test(model.name)) norm = 'norm_pre_ln';
   else if (c.has('looped_depth_sharing') && c.has('gated_residuals')) norm = 'norm_gated_loop';
-  else if (c.has('mhc')) norm = 'norm_mhc';
+  else if (c.has('mhc') || /hyper-connection|ihc/i.test(attnText)) norm = 'norm_mhc';
   else if (c.has('attention_residuals') || c.has('gated_residuals')) norm = 'norm_attn_res';
-  else if (/gemma/i.test(model.name)) norm = 'norm_peri_gemma';
+  else if (/gemma|domyn edge/i.test(model.name)) norm = 'norm_peri_gemma';
   else if (/olmo/i.test(model.name)) norm = 'norm_post_olmo';
   else if (c.has('qk_norm')) norm = 'norm_rms_qknorm';
 
   // 4. Primary Attention
   let attention = 'attn_gqa';
   if (c.has('csa_hca')) attention = 'attn_csa_hca';
+  else if (/difftpa|differential tensor-product/i.test(attnText)) attention = 'attn_difftpa';
   else if (c.has('mla') && c.has('deepseek_sparse_attention') && c.has('looped_depth_sharing')) {
     attention = 'attn_mla_dsa_loop';
+  } else if (c.has('mla') && (c.has('gated_attention') || c.has('index_share'))) {
+    attention = 'attn_gated_mla';
   } else if (c.has('mla') && c.has('deepseek_sparse_attention')) attention = 'attn_mla_dsa';
   else if (c.has('mla')) attention = 'attn_mla';
   else if (c.has('kv_sharing')) attention = 'attn_kv_sharing';
@@ -584,6 +705,9 @@ export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
   let hybridRatio = 3;
   if (/mlstm|xlstm/i.test(attnText) || /recurrent/i.test(model.decoderType)) {
     hybrid = 'hyb_xlstm';
+  } else if (/mamba-3/i.test(attnText)) {
+    hybrid = 'hyb_mamba3';
+    hybridRatio = 4;
   } else if (/mamba-2|mamba/i.test(attnText)) {
     hybrid = 'hyb_mamba2';
     hybridRatio = 5;
@@ -598,6 +722,10 @@ export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
   } else if (/liv convolution|shortconv plus/i.test(attnText)) {
     hybrid = 'hyb_shortconv';
     hybridRatio = 3;
+  } else if (c.has('hybrid_attention')) {
+    hybrid = 'hyb_deltanet';
+    const rMatch = attnText.match(/(\d+):1/);
+    if (rMatch) hybridRatio = Math.min(7, Math.max(2, parseInt(rMatch[1], 10)));
   } else if ((c.has('swa') || /sliding-window/i.test(attnText)) && attention !== 'attn_mla_dsa_loop') {
     hybrid = 'hyb_swa';
     const rMatch = attnText.match(/(\d+):1/);
@@ -610,18 +738,25 @@ export function galleryModelToConfig(model: GalleryModel): ArchitectureConfig {
   let loopPasses = 1;
   if (c.has('looped_depth_sharing') && isMoE) {
     ffn = 'ffn_looped_moe';
-    const passMatch = model.layerMix.match(/×\s*(\d+)/i);
-    loopPasses = passMatch ? Math.min(4, Math.max(2, parseInt(passMatch[1], 10))) : 2;
+    const passMatch = (model.layerMix + ' ' + model.summary).match(/(?:×\s*(\d+)|(\d+)\s*times|three times)/i);
+    if (passMatch) {
+      if (/three/i.test(passMatch[0])) loopPasses = 3;
+      else loopPasses = Math.min(4, Math.max(2, parseInt(passMatch[1] || passMatch[2], 10)));
+    } else {
+      loopPasses = 2;
+    }
   } else if (c.has('looped_depth_sharing')) {
     ffn = 'ffn_looped_depth';
     const passMatch = model.layerMix.match(/×\s*(\d+)\s*pass/i);
     loopPasses = passMatch ? Math.min(4, Math.max(2, parseInt(passMatch[1], 10))) : 2;
+  } else if (isMoE && /engram|n-gram|shortcut moe/i.test(attnText)) {
+    ffn = 'ffn_ngram_moe';
   } else if (c.has('latent_moe')) {
     ffn = 'ffn_latent_moe';
   } else if (isMoE) {
     const activeRatio =
       model.totalParamsB && model.activeParamsB ? model.activeParamsB / model.totalParamsB : 0.1;
-    ffn = activeRatio < 0.08 || /deepseek|qwen3\.5|glm-5|kimi/i.test(model.name)
+    ffn = activeRatio < 0.08 || /deepseek|qwen3\.5|glm-5|kimi|tencent hy4|instella/i.test(model.name)
       ? 'ffn_moe_shared'
       : 'ffn_moe_sparse';
   } else if (/gemma/i.test(model.name)) {

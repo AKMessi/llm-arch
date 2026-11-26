@@ -289,7 +289,7 @@ export function renderSpecCardCanvas(
   ctx.fillStyle = inkMuted;
   ctx.font = '500 11px "JetBrains Mono", monospace';
   ctx.fillText(
-    'Grounded in Sebastian Raschka’s LLM Architecture Gallery + Frontier Releases (121 Open-Weight Models)',
+    'Grounded in Sebastian Raschka’s LLM Architecture Gallery (132 Open-Weight Models · Apache 2.0)',
     60,
     632
   );

@@ -12,6 +12,7 @@ const MIXER_COLORS: Record<LayerSpec['mixerKind'], { color: string; label: strin
   deltanet: { color: 'var(--stage-position)', label: 'Gated DeltaNet' },
   kda: { color: 'var(--stage-position)', label: 'Kimi Delta Attn' },
   mamba2: { color: 'var(--stage-norm)', label: 'Mamba-2 SSM' },
+  mamba3: { color: 'var(--stage-norm)', label: 'Mamba-3 SSM' },
   mlstm: { color: 'var(--stage-norm)', label: 'mLSTM Recurrent' },
   shortconv: { color: 'var(--stage-tokenizer)', label: 'LIV ShortConv' },
 };
@@ -154,7 +155,9 @@ export const LayerStackStrip: React.FC<LayerStackStripProps> = ({ physics }) => 
                 ? 'Dense FFN'
                 : hovered.ffnKind === 'latent_moe'
                   ? 'Latent MoE'
-                  : 'Sparse MoE'}
+                  : hovered.ffnKind === 'ngram_moe'
+                    ? 'Shortcut+N-Gram MoE'
+                    : 'Sparse MoE'}
               {hovered.kvSharedSource ? ` (reuses L${hovered.kvSharedSource} KV)` : ''}
             </span>
             <span style={{ color: 'var(--stage-attention)' }}>

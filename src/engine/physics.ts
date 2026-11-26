@@ -76,9 +76,21 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
   const isLooped = isFullLoop || isSandwichLoop;
   const loopPasses = isLooped ? Math.max(2, dims.loopPasses) : 1;
 
-  // GLM-5.4 Sandwich Loop geometry: 26/78 opening + 28/78 looped middle + 24/78 closing (exact 26 + 28×2 + 24 = 106 when L=78!)
-  const loopOpeningCount = isSandwichLoop ? Math.round(L * (26 / 78)) : 0;
-  const loopMiddleCount = isSandwichLoop ? Math.round(L * (28 / 78)) : isFullLoop ? L : 0;
+  // Sandwich Loop geometry:
+  // - GLM-5.4 (L=78): exact 26 opening + 28 looped × 2 + 24 closing = 106 eff. layers
+  // - Inkling 2 Mini (L≤32, e.g. L=24): exact 25% opening + 50% looped + 25% closing (6 + 12×3 + 6 = 48 eff.)
+  const loopOpeningCount = isSandwichLoop
+    ? L <= 32
+      ? Math.round(L * 0.25)
+      : Math.round(L * (26 / 78))
+    : 0;
+  const loopMiddleCount = isSandwichLoop
+    ? L <= 32
+      ? Math.round(L * 0.5)
+      : Math.round(L * (28 / 78))
+    : isFullLoop
+      ? L
+      : 0;
   const loopClosingCount = isSandwichLoop ? Math.max(0, L - loopOpeningCount - loopMiddleCount) : 0;
   const effectiveDepth = isSandwichLoop
     ? loopOpeningCount + loopMiddleCount * loopPasses + loopClosingCount
@@ -89,11 +101,15 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
     config.ffn === 'ffn_moe_sparse' ||
     config.ffn === 'ffn_moe_shared' ||
     config.ffn === 'ffn_latent_moe' ||
-    config.ffn === 'ffn_looped_moe';
+    config.ffn === 'ffn_looped_moe' ||
+    config.ffn === 'ffn_ngram_moe';
   const isLatentMoE = config.ffn === 'ffn_latent_moe';
+  const isNgramMoE = config.ffn === 'ffn_ngram_moe';
   const isPureRecurrent = config.hybrid === 'hyb_xlstm';
   const isKvShared = config.attention === 'attn_kv_sharing';
   const isLoopHybridKv = config.attention === 'attn_mla_dsa_loop';
+  const hasIndexShareCache =
+    config.attention === 'attn_mla_dsa_loop' || config.attention === 'attn_gated_mla';
 
   // Primary attention KV bytes/token/layer in BF16 (2 bytes per scalar)
   const primaryKvPerLayerBf16 = (() => {
@@ -106,9 +122,13 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
       case 'attn_gated_gqa':
       case 'attn_kv_sharing':
         return 2 * nKv * dHead * 2;
+      case 'attn_difftpa':
+        // Olala DiffTPA rank-4 factorized Tensor-Product KV cache (signal + noise low-rank factors -> ~15.3 KiB on 7-8 layers)
+        return Math.max(768, Math.round(2 * 4 * (H * 1.5 + dHead * 1.65) * 2));
       case 'attn_mla':
       case 'attn_mla_dsa':
       case 'attn_mla_dsa_loop':
+      case 'attn_gated_mla':
         return (dims.mlaKvLoraRank + dims.mlaQkRopeDim) * 2;
       case 'attn_csa_hca':
         // DeepSeek V4 / ERNIE 5.5 ultra-compressed hierarchical latent (~64-128 dim effective)
@@ -181,6 +201,11 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
           mixerLabel = 'Mamba-2 SSM';
           layerKvBf16 = 0;
           recurrentLayers++;
+        } else if (config.hybrid === 'hyb_mamba3') {
+          mixerKind = 'mamba3';
+          mixerLabel = 'Mamba-3 SSM';
+          layerKvBf16 = 0;
+          recurrentLayers++;
         } else if (config.hybrid === 'hyb_shortconv') {
           mixerKind = 'shortconv';
           mixerLabel = 'LIV ShortConv';
@@ -217,11 +242,17 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
     }
 
     const ffnKind: LayerSpec['ffnKind'] =
-      !isMoE || idx <= densePrefix ? 'dense' : isLatentMoE ? 'latent_moe' : 'moe';
+      !isMoE || idx <= densePrefix
+        ? 'dense'
+        : isLatentMoE
+          ? 'latent_moe'
+          : isNgramMoE
+            ? 'ngram_moe'
+            : 'moe';
 
     const displayLayerKv =
       isLoopHybridKv && extraPassesHere > 0
-        ? layerKvBf16 // Pass 2 only uses tiny fixed SWA(1024) window, not growing global KV!
+        ? layerKvBf16 // Pass 2 only uses tiny fixed SWA(128) window, not growing global KV!
         : layerKvBf16 * (1 + extraPassesHere);
 
     layers.push({
@@ -235,6 +266,13 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
       kvSharedSource,
     });
   }
+
+  // Exact DSA IndexShare key-cache overhead (GLM-5.2 / GLM-5.4 / Tencent Hy4: ~21/78 layers keep 128d indexer keys -> +5.25 KiB = 93 KiB exact!)
+  const indexShareBytesPerTokenBf16 =
+    hasIndexShareCache && primaryCount > 0
+      ? Math.round(primaryCount * (21 / 78)) * 128 * 2
+      : 0;
+  kvFullBytesPerTokenBf16 += indexShareBytesPerTokenBf16;
 
   // Nominal growing KV/token (BF16): GLM-5.4 Hybrid KV avoids doubling full-context KV on loop passes!
   const kvNominalBytesPerTokenBf16 =
@@ -280,6 +318,9 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
     } else if (layer.mixerKind === 'mamba2') {
       // Expand 2× in_proj, conv, dt/B/C, out_proj ≈ 6 d^2
       attentionTotal += 6 * d * d;
+    } else if (layer.mixerKind === 'mamba3') {
+      // Complex-valued trapezoidal Mamba-3 SSM ≈ 6.3 d^2
+      attentionTotal += 6.3 * d * d;
     } else if (layer.mixerKind === 'mlstm') {
       attentionTotal += 5.5 * d * d;
     } else if (layer.mixerKind === 'shortconv') {
@@ -295,10 +336,14 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
       } else if (config.attention === 'attn_gated_gqa') {
         // Extra output sigmoid gate W_g (d × d)
         attentionTotal += 3 * d * d + 2 * d * (nKv * dHead);
+      } else if (config.attention === 'attn_difftpa') {
+        // Signal + noise Q projections + rank-4 factorized KV + output gate
+        attentionTotal += 3.2 * d * d;
       } else if (
         config.attention === 'attn_mla' ||
         config.attention === 'attn_mla_dsa' ||
         config.attention === 'attn_mla_dsa_loop' ||
+        config.attention === 'attn_gated_mla' ||
         config.attention === 'attn_csa_hca'
       ) {
         const dc = dims.mlaKvLoraRank;
@@ -308,7 +353,8 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
         const kvProj = d * (dc + dr) + dc * H * (2 * dHead);
         const oProj = H * dHead * d;
         const sparseIdx = config.attention !== 'attn_mla' ? 0.15 * d * d : 0;
-        attentionTotal += qProj + kvProj + oProj + sparseIdx;
+        const outGate = config.attention === 'attn_gated_mla' ? d * d : 0;
+        attentionTotal += qProj + kvProj + oProj + sparseIdx + outGate;
       }
     }
   }
@@ -333,8 +379,18 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
       const shared = dims.nSharedExperts * 3 * d * dims.dFf;
       ffnTotal += latProj + router + shared + dims.nExperts * expertParams;
       ffnActive += latProj + router + shared + Math.min(dims.nExperts, dims.activeExperts) * expertParams;
+    } else if (layer.ffnKind === 'ngram_moe') {
+      // LongCat-2.5 / DeepSeek V4.1-Flash Shortcut MoE + O(1) N-Gram / Engram Lookup Tables
+      const expertParams = 3 * d * dims.dFf;
+      const router = d * dims.nExperts;
+      const shared = dims.nSharedExperts * 3 * d * dims.dFf;
+      // N-gram / Engram hash-lookup table (~135B total spread over ~76 layers at d=6144 -> ~1.75B/layer, 0 active FLOPs)
+      const ngramTablePerLayer = 285000 * d;
+      const ngramGate = 2 * d * d;
+      ffnTotal += router + shared + dims.nExperts * expertParams + ngramTablePerLayer + ngramGate;
+      ffnActive += router + shared + Math.min(dims.nExperts, dims.activeExperts) * expertParams + ngramGate;
     } else {
-      // Standard, Fine-Grained + Shared MoE, or GLM-5.4 Looped Sparse MoE
+      // Standard, Fine-Grained + Shared MoE, or GLM-5.4 / Inkling 2 Looped Sparse MoE
       const expertParams = 3 * d * dims.dFf;
       const router = d * dims.nExperts;
       const shared =
@@ -396,6 +452,7 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
   const effAttnSpan =
     config.attention === 'attn_mla_dsa' ||
     config.attention === 'attn_mla_dsa_loop' ||
+    config.attention === 'attn_gated_mla' ||
     config.attention === 'attn_csa_hca'
       ? Math.min(dims.contextLength, 4096) // sparse top-k blocks
       : config.hybrid === 'hyb_swa'
@@ -627,10 +684,15 @@ export function computePhysics(config: ArchitectureConfig): PhysicsReport {
       opSummary: isPureRecurrent
         ? 'Bypassed — pure mLSTM matrix recurrence handles all token mixing'
         : config.attention === 'attn_mla_dsa_loop'
-          ? `Pass 1 caches compressed MLA c_KV (${dims.mlaKvLoraRank}d) & DSA indices; Pass 2 reuses both + adds local SWA(${formatContext(dims.swaWindow)}) KV`
-          : config.attention === 'attn_mla' || config.attention === 'attn_mla_dsa' || config.attention === 'attn_csa_hca'
-            ? `Compresses h → latent c_KV (${dims.mlaKvLoraRank}d) and reads ultra-lean cached latents`
-            : `Projects ${H} Query heads against ${nKv} cached KV heads across ${formatContext(dims.contextLength)} context`,
+          ? `Pass 1 caches compressed MLA c_KV (${dims.mlaKvLoraRank}d) + 21 IndexShare histories; Pass 2 reuses both + adds local SWA(${formatContext(dims.swaWindow)}) KV`
+          : config.attention === 'attn_difftpa'
+            ? `Differential signal−λ·noise attention over rank-4 factorized Tensor-Product KV cache (${formatKiB(kvKiBPerTokenBf16)}/tok)`
+            : config.attention === 'attn_mla' ||
+                config.attention === 'attn_mla_dsa' ||
+                config.attention === 'attn_gated_mla' ||
+                config.attention === 'attn_csa_hca'
+              ? `Compresses h → latent c_KV (${dims.mlaKvLoraRank}d)${config.attention === 'attn_gated_mla' ? ' + IndexShare + σ output gate' : ''} and reads ultra-lean cached latents`
+              : `Projects ${H} Query heads against ${nKv} cached KV heads across ${formatContext(dims.contextLength)} context`,
       tensorIn: `[1, 1, ${d}]`,
       tensorOut: `[1, ${H}, 1, ${dHead}] → [1, 1, ${d}]`,
       mathNote: attnComp?.formula ?? 'SDPA(Q, K, V)',

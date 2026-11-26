@@ -21,11 +21,12 @@ export function matchGalleryModels(
     config.ffn === 'ffn_moe_sparse' ||
     config.ffn === 'ffn_moe_shared' ||
     config.ffn === 'ffn_latent_moe' ||
-    config.ffn === 'ffn_looped_moe';
+    config.ffn === 'ffn_looped_moe' ||
+    config.ffn === 'ffn_ngram_moe';
   const isUserLoop =
     config.ffn === 'ffn_looped_depth' || config.ffn === 'ffn_looped_moe';
   const isUserRecurrent = config.hybrid === 'hyb_xlstm';
-  const isUserMamba = config.hybrid === 'hyb_mamba2';
+  const isUserMamba = config.hybrid === 'hyb_mamba2' || config.hybrid === 'hyb_mamba3';
   const isUserHybrid = config.hybrid !== 'hyb_none' && config.hybrid !== 'hyb_swa';
 
   const scored: SimilarityMatch[] = gallery.map((model) => {
@@ -80,10 +81,13 @@ export function matchGalleryModels(
     else if (isUserMoE === modelIsMoE) familyBonus = 0.08;
 
     // 3. Attention family bonus
-    const attnStr = model.attention.toLowerCase();
+    const attnStr = (model.attention + ' ' + model.layerMix + ' ' + model.summary).toLowerCase();
     let attnBonus = 0;
-    if (config.attention === 'attn_mla_dsa_loop' && /indexshare|cross-loop/.test(attnStr)) attnBonus = 0.16;
-    else if (config.attention === 'attn_mla_dsa_loop' && /mla|sparse attention/.test(attnStr)) attnBonus = 0.1;
+    if (config.attention === 'attn_mla_dsa_loop' && /second pass|indexshare|cross-loop/.test(attnStr) && modelConcepts.has('looped_depth_sharing')) attnBonus = 0.18;
+    else if (config.attention === 'attn_mla_dsa_loop' && /mla|sparse attention/.test(attnStr)) attnBonus = 0.08;
+    else if (config.attention === 'attn_gated_mla' && /gated mla|indexcache|longcat sparse/.test(attnStr)) attnBonus = 0.16;
+    else if (config.attention === 'attn_gated_mla' && /\bmla\b/.test(attnStr)) attnBonus = 0.1;
+    else if (config.attention === 'attn_difftpa' && /difftpa|differential tensor-product/.test(attnStr)) attnBonus = 0.22;
     else if (config.attention === 'attn_mla' && /\bmla\b/.test(attnStr)) attnBonus = 0.12;
     else if (config.attention === 'attn_mla_dsa' && /sparse attention/.test(attnStr)) attnBonus = 0.15;
     else if (config.attention === 'attn_csa_hca' && /csa|hca/.test(attnStr)) attnBonus = 0.16;
@@ -91,6 +95,13 @@ export function matchGalleryModels(
     else if (config.attention === 'attn_gated_gqa' && /gated/.test(attnStr)) attnBonus = 0.12;
     else if (config.attention === 'attn_mha' && /\bmha\b/.test(attnStr)) attnBonus = 0.12;
     else if (config.attention === 'attn_mqa' && /multi-query/.test(attnStr)) attnBonus = 0.14;
+
+    if (config.ffn === 'ffn_ngram_moe' && /n-gram|engram|shortcut moe/.test(attnStr)) {
+      familyBonus += 0.14;
+    }
+    if (config.hybrid === 'hyb_mamba3' && /mamba-3/.test(attnStr)) {
+      familyBonus += 0.14;
+    }
 
     // 4. KV-cache order-of-magnitude proximity bonus
     let kvBonus = 0;

@@ -88,9 +88,13 @@ export const SimulationLab: React.FC<SimulationLabProps> = ({
   const isSparseDsa =
     config.attention === 'attn_mla_dsa' ||
     config.attention === 'attn_mla_dsa_loop' ||
+    config.attention === 'attn_gated_mla' ||
     config.attention === 'attn_csa_hca';
   const isNoPe = config.position === 'pos_pure_nope';
-  const isGatedAttn = config.attention === 'attn_gated_gqa';
+  const isGatedAttn =
+    config.attention === 'attn_gated_gqa' ||
+    config.attention === 'attn_gated_mla' ||
+    config.attention === 'attn_difftpa';
 
   // Compute 16x16 attention / receptive field matrix reflecting exact equipped architecture
   const matrix = useMemo(() => {
@@ -114,8 +118,13 @@ export const SimulationLab: React.FC<SimulationLabProps> = ({
             // Causal kernel width 4
             if (dist <= 3) row[j] = 1 - dist * 0.22;
           } else {
-            // DeltaNet / Kimi KDA / Mamba-2 / mLSTM: exponential state decay + key overwrite
-            const decay = config.hybrid === 'hyb_mamba2' ? 0.22 : 0.18;
+            // DeltaNet / Kimi KDA / Mamba-2 / Mamba-3 / mLSTM: exponential state decay + key overwrite
+            const decay =
+              config.hybrid === 'hyb_mamba2'
+                ? 0.22
+                : config.hybrid === 'hyb_mamba3'
+                  ? 0.15
+                  : 0.18;
             row[j] = Math.exp(-dist * decay) * (j === 1 || j === 7 ? 1.15 : 0.85);
           }
         } else {
@@ -419,10 +428,11 @@ export const SimulationLab: React.FC<SimulationLabProps> = ({
                   {[
                     { id: 'attn_gqa', label: 'GQA' },
                     { id: 'attn_gated_gqa', label: 'Gated GQA' },
-                    { id: 'attn_mla_dsa', label: 'MLA + DSA' },
+                    { id: 'attn_gated_mla', label: 'Gated MLA' },
+                    { id: 'attn_difftpa', label: 'DiffTPA' },
                     { id: 'hyb_swa', label: 'SWA Mix' },
                     { id: 'hyb_deltanet', label: 'DeltaNet' },
-                    { id: 'hyb_mamba2', label: 'Mamba-2' },
+                    { id: 'hyb_mamba3', label: 'Mamba-3' },
                   ].map((item) => {
                     const comp = COMPONENT_MAP[item.id];
                     const active = config.attention === item.id || config.hybrid === item.id;

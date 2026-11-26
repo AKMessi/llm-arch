@@ -407,7 +407,19 @@ export function classifyArchetype(
       subtitle: 'CSA/HCA extreme latent compression over 4-lane mHC residual rails.',
     };
   }
-  if (config.hybrid === 'hyb_mamba2') {
+  if (config.ffn === 'ffn_ngram_moe') {
+    return {
+      title: 'The Engram Trillion Titan',
+      subtitle: 'Shortcut MoE fused with massive O(1) N-Gram / Engram lookup memory tables.',
+    };
+  }
+  if (config.attention === 'attn_difftpa' && (config.hybrid === 'hyb_mamba3' || config.hybrid === 'hyb_mamba2')) {
+    return {
+      title: 'The Differential State-Space Hybrid',
+      subtitle: 'Mamba-3 SSM O(1) backbone paired with rank-4 noise-cancelling DiffTPA.',
+    };
+  }
+  if (config.hybrid === 'hyb_mamba2' || config.hybrid === 'hyb_mamba3') {
     return {
       title: 'The State-Space Hybrid Cruiser',
       subtitle: 'Mostly Mamba-2 SSM backbone punctuated by surgical attention recall.',

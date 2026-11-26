@@ -92,11 +92,13 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({
     config.ffn === 'ffn_moe_sparse' ||
     config.ffn === 'ffn_moe_shared' ||
     config.ffn === 'ffn_latent_moe' ||
-    config.ffn === 'ffn_looped_moe';
+    config.ffn === 'ffn_looped_moe' ||
+    config.ffn === 'ffn_ngram_moe';
   const isMla =
     config.attention === 'attn_mla' ||
     config.attention === 'attn_mla_dsa' ||
     config.attention === 'attn_mla_dsa_loop' ||
+    config.attention === 'attn_gated_mla' ||
     config.attention === 'attn_csa_hca';
   const isGqaLike =
     config.attention === 'attn_gqa' ||
@@ -121,13 +123,24 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({
       (draggingComp.id === 'ffn_moe_sparse' ||
         draggingComp.id === 'ffn_moe_shared' ||
         draggingComp.id === 'ffn_latent_moe' ||
-        draggingComp.id === 'ffn_looped_moe') &&
+        draggingComp.id === 'ffn_looped_moe' ||
+        draggingComp.id === 'ffn_ngram_moe') &&
       hypothetical.dims.nExperts <= 1
     ) {
-      hypothetical.dims.nExperts = draggingComp.id === 'ffn_looped_moe' ? 256 : 64;
-      hypothetical.dims.activeExperts = draggingComp.id === 'ffn_looped_moe' ? 8 : 6;
+      hypothetical.dims.nExperts =
+        draggingComp.id === 'ffn_ngram_moe'
+          ? 384
+          : draggingComp.id === 'ffn_looped_moe'
+            ? 256
+            : 64;
+      hypothetical.dims.activeExperts =
+        draggingComp.id === 'ffn_ngram_moe' ? 12 : draggingComp.id === 'ffn_looped_moe' ? 8 : 6;
       hypothetical.dims.nSharedExperts =
-        draggingComp.id === 'ffn_moe_shared' || draggingComp.id === 'ffn_looped_moe' ? 1 : 0;
+        draggingComp.id === 'ffn_moe_shared' ||
+        draggingComp.id === 'ffn_looped_moe' ||
+        draggingComp.id === 'ffn_ngram_moe'
+          ? 1
+          : 0;
       hypothetical.dims.dFf = Math.min(hypothetical.dims.dFf, 2048);
     }
     if (
@@ -455,7 +468,7 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({
               <input
                 type="range"
                 min={8}
-                max={384}
+                max={768}
                 step={8}
                 value={dims.nExperts}
                 onChange={(e) => {
@@ -597,9 +610,9 @@ export const BlueprintCanvas: React.FC<BlueprintCanvasProps> = ({
                 </div>
                 <input
                   type="range"
-                  min={512}
+                  min={128}
                   max={16384}
-                  step={512}
+                  step={128}
                   value={dims.swaWindow}
                   onChange={(e) => onUpdateDims({ swaWindow: Number(e.target.value) })}
                   className="w-full blueprint-slider"

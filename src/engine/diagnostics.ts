@@ -95,6 +95,7 @@ export function runArchitectureDiagnostics(
     config.attention !== 'attn_mla' &&
     config.attention !== 'attn_mla_dsa' &&
     config.attention !== 'attn_mla_dsa_loop' &&
+    config.attention !== 'attn_gated_mla' &&
     config.attention !== 'attn_csa_hca'
   ) {
     items.push({
@@ -137,7 +138,7 @@ export function runArchitectureDiagnostics(
       id: 'loop-kv-bloat',
       severity: 'warning',
       title: 'Looped Passes Multiply Full-Context KV Cache',
-      detail: `At ${Math.round(dims.contextLength / 1024)}K context, naively caching every loop pass multiplies KV-cache VRAM. GLM-5.4 reuses Pass-1 compressed MLA KV & DSA indices while adding only a local SWA(1024) KV ring on Pass 2.`,
+      detail: `At ${Math.round(dims.contextLength / 1024)}K context, naively caching every loop pass multiplies KV-cache VRAM. GLM-5.4 reuses Pass-1 compressed MLA KV & DSA indices while adding only a local SWA(128) KV ring on Pass 2.`,
       suggestion: {
         label: 'Equip Cross-Loop Hybrid KV',
         stage: 'attention',
@@ -149,14 +150,32 @@ export function runArchitectureDiagnostics(
   // ==================== SYNERGIES (POSITIVE ARCHITECTURAL INSIGHTS) ====================
   if (
     config.ffn === 'ffn_looped_moe' &&
-    (config.norm === 'norm_gated_loop' || config.attention === 'attn_mla_dsa_loop')
+    (config.norm === 'norm_gated_loop' || config.norm === 'norm_attn_res' || config.attention === 'attn_mla_dsa_loop')
   ) {
     const lb = physics.loopBreakdown;
     items.push({
       id: 'syn-glm54-loop',
       severity: 'synergy',
-      title: `GLM-5.4 Loop Transformer Synergy (${physics.effectiveDepth} Eff. Layers)`,
-      detail: `${lb ? `${lb.opening} opening + ${lb.looped} looped ×${lb.passes} + ${lb.closing} closing` : `${dims.nLayers}×${dims.loopPasses}`} delivers 2T–3T class reasoning depth inside a ${((physics.params.total / 1e9)).toFixed(0)}B weight footprint — stabilized by β_k progressive gates & Cross-Loop Hybrid KV + DSA IndexShare!`,
+      title: `Sandwich Loop Transformer Synergy (${physics.effectiveDepth} Eff. Layers)`,
+      detail: `${lb ? `${lb.opening} opening + ${lb.looped} looped ×${lb.passes} + ${lb.closing} closing` : `${dims.nLayers}×${dims.loopPasses}`} delivers deep multi-pass reasoning inside a ${(physics.params.total / 1e9).toFixed(0)}B weight footprint — matching Z.ai GLM-5.4 & Thinking Machines Inkling 2 Mini!`,
+    });
+  }
+
+  if (config.attention === 'attn_difftpa' && (config.hybrid === 'hyb_mamba3' || config.hybrid === 'hyb_mamba2')) {
+    items.push({
+      id: 'syn-olala-difftpa',
+      severity: 'synergy',
+      title: `Mamba-3 + DiffTPA Ultra-Lean Hybrid (${physics.kvKiBPerTokenBf16.toFixed(1)} KiB/tok)`,
+      detail: `Matching OVHcloud Olala v1.0 Mini! Complex-valued Mamba-3 SSM layers deliver O(1) memory while rank-4 Differential Tensor-Product Attention cancels context noise in minimal KV RAM.`,
+    });
+  }
+
+  if (config.ffn === 'ffn_ngram_moe') {
+    items.push({
+      id: 'syn-ngram-moe',
+      severity: 'synergy',
+      title: 'Zero-FLOP N-Gram / Engram Memory Augmentation',
+      detail: `Matching Meituan LongCat-2.5 1.6T & DeepSeek V4.1-Flash! Static world knowledge lives in O(1) lookup tables while only ${physics.params.activeRatioPct.toFixed(1)}% of weights compute per token.`,
     });
   }
 
@@ -170,18 +189,23 @@ export function runArchitectureDiagnostics(
   }
 
   if (
-    (config.attention === 'attn_mla' || config.attention === 'attn_mla_dsa' || config.attention === 'attn_csa_hca') &&
-    (config.ffn === 'ffn_moe_shared' || config.ffn === 'ffn_latent_moe')
+    (config.attention === 'attn_mla' ||
+      config.attention === 'attn_mla_dsa' ||
+      config.attention === 'attn_gated_mla' ||
+      config.attention === 'attn_csa_hca') &&
+    (config.ffn === 'ffn_moe_shared' ||
+      config.ffn === 'ffn_latent_moe' ||
+      config.ffn === 'ffn_ngram_moe')
   ) {
     items.push({
       id: 'syn-deepseek-frontier',
       severity: 'synergy',
-      title: 'DeepSeek-Class Memory + Compute Frontier',
+      title: 'Frontier Latent-KV + Sparse MoE Efficiency',
       detail: `Combining latent KV compression (${physics.kvKiBPerTokenBf16.toFixed(1)} KiB/tok) with ${physics.params.activeRatioPct.toFixed(1)}% active sparse MoE unlocks massive batch throughput even at 128K–1M context.`,
     });
   }
 
-  if (config.hybrid === 'hyb_mamba2' || config.hybrid === 'hyb_xlstm') {
+  if (config.hybrid === 'hyb_mamba2' || config.hybrid === 'hyb_mamba3' || config.hybrid === 'hyb_xlstm') {
     items.push({
       id: 'syn-ssm-kv',
       severity: 'synergy',
@@ -192,7 +216,7 @@ export function runArchitectureDiagnostics(
       detail:
         config.hybrid === 'hyb_xlstm'
           ? `0 B/token KV-cache! Your memory footprint stays completely flat at ${physics.recurrentStateMb.toFixed(0)} MB whether at 4K or 1M tokens.`
-          : `Mamba-2 SSM layers handle sequential compression in O(1) memory while periodic attention layers guarantee long-range associative recall — matching NVIDIA Nemotron 3.`,
+          : `${config.hybrid === 'hyb_mamba3' ? 'Mamba-3' : 'Mamba-2'} SSM layers handle sequential compression in O(1) memory while periodic attention layers guarantee long-range associative recall — matching NVIDIA Nemotron 3 & OVHcloud Olala.`,
     });
   }
 

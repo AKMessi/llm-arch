@@ -8,8 +8,7 @@ This project bundles model metadata derived from **Sebastian Raschka's LLM Archi
 - License: **Apache License, Version 2.0**
 
 Modifications made:
-- Converted `models.yml` into typed JSON (`src/data/galleryModels.json`) with normalized numeric parameter, context-length, vocabulary, and KV-cache KiB fields for interactive filtering, Pareto plotting, and similarity scoring.
-- Added **Z.ai GLM-5.4 (Nov 23, 2026)** Loop Transformer metadata grounded in Z.ai's official technical release (`https://z.ai/blog/glm-5.4`) and GLM-5 base architecture config (`https://huggingface.co/zai-org/GLM-5/blob/main/config.json`).
+- Synced and normalized all **132 open-weight models** from Sebastian Raschka's LLM Architecture Gallery (`https://sebastianraschka.com/llm-architecture-gallery/` & `models.yml`) into typed JSON (`src/data/galleryModels.json`) with normalized numeric parameter, context-length, vocabulary, and KV-cache KiB fields for interactive filtering, Pareto plotting, and similarity scoring.
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not use the derived dataset except in compliance with the License. You may obtain a copy of the License at:
 
